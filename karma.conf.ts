@@ -18,11 +18,11 @@ module.exports = (config) => {
     browserDisconnectTimeout: 60000,
     browserDisconnectTolerance: 3,
     browserNoActivityTimeout: 60000,
-    browsers: ["ChromeHeadless"],
+    browsers: ["ChromeHeadlessNoSandbox"],
     customLaunchers: {
-      ChromeDebugging: {
+      ChromeHeadlessNoSandbox: {
         base: "ChromeHeadless",
-        flags: ["--remote-debugging-port=9333"],
+        flags: ["--no-sandbox --remote-debugging-port=9333"],
       },
     },
     colors: true,
