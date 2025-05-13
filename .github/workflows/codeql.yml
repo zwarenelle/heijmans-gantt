@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main, dev, certification]
   schedule:
-    - cron: '0 0 * * 3'
+    - cron: "0 0 * * 3"
 
 jobs:
   analyze:
@@ -22,30 +22,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ['typescript']
- 
+        language: ["typescript"]
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 2
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
-    - name: Use Node.js 18
-      uses: actions/setup-node@v2
-      with:
-        node-version: 18.x
+      - name: Use Node.js 20
+        uses: actions/setup-node@v2
+        with:
+          node-version: 20.18.0
 
-    - name: Install Dependencies
-      run: npm ci
+      - name: Install Dependencies
+        run: npm ci
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
-      with:
-        languages: ${{ matrix.language }}
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v3
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v3
-
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
