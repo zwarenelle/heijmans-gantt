@@ -19,7 +19,7 @@ module.exports = (config) => {
     customLaunchers: {
       ChromeDebugging: {
         base: "ChromeHeadless",
-        flags: ["--no-sandbox --remote-debugging-port=9333"],
+        flags: ["--remote-debugging-port=9333"],
       },
     },
     colors: true,
