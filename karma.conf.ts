@@ -14,15 +14,12 @@ process.env.CHROME_BIN =
 module.exports = (config) => {
   config.set({
     mode: "development",
-    captureTimeout: 60000,
-    browserDisconnectTimeout: 60000,
-    browserDisconnectTolerance: 3,
-    browserNoActivityTimeout: 60000,
-    browsers: ["ChromeHeadlessNoSandbox"],
+    browserNoActivityTimeout: 100000,
+    browsers: ["Chrome"],
     customLaunchers: {
-      ChromeHeadlessNoSandbox: {
-        base: "ChromeHeadless",
-        flags: ["--no-sandbox --remote-debugging-port=9333"],
+      ChromeDebugging: {
+        base: "Chrome",
+        flags: ["--disable-web-security", "--disable-gpu", "--no-sandbox"],
       },
     },
     colors: true,
