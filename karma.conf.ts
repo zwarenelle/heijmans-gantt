@@ -15,11 +15,11 @@ module.exports = (config) => {
   config.set({
     mode: "development",
     browserNoActivityTimeout: 100000,
-    browsers: ["Chrome"],
+    browsers: ["ChromeHeadless"],
     customLaunchers: {
       ChromeDebugging: {
-        base: "Chrome",
-        flags: ["--disable-web-security", "--disable-gpu", "--no-sandbox"],
+        base: "ChromeHeadless",
+        flags: ["--no-sandbox --remote-debugging-port=9333"],
       },
     },
     colors: true,
