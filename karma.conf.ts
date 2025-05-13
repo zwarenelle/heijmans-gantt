@@ -14,7 +14,10 @@ process.env.CHROME_BIN =
 module.exports = (config) => {
   config.set({
     mode: "development",
-    browserNoActivityTimeout: 100000,
+    captureTimeout: 60000,
+    browserDisconnectTimeout: 60000,
+    browserDisconnectTolerance: 3,
+    browserNoActivityTimeout: 60000,
     browsers: ["ChromeHeadless"],
     customLaunchers: {
       ChromeDebugging: {
