@@ -3,15 +3,15 @@ import * as moment from 'moment';
 import 'moment/locale/nl';
 moment.locale('nl');
 
-import {select as d3Select, Selection as d3Selection} from "d3-selection";
-import {ScaleTime as timeScale} from "d3-scale";
+import { select as d3Select, Selection as d3Selection } from "d3-selection";
+import { ScaleTime as timeScale } from "d3-scale";
 import {
     timeDay as d3TimeDay,
     timeHour as d3TimeHour,
     timeMinute as d3TimeMinute,
     timeSecond as d3TimeSecond
 } from "d3-time";
-import {nest as d3Nest} from "d3-collection";
+import { nest as d3Nest } from "d3-collection";
 import "d3-transition";
 
 //lodash
@@ -23,7 +23,7 @@ import lodashMaxBy from "lodash.maxby";
 import lodashGroupBy from "lodash.groupby";
 import lodashClone from "lodash.clone";
 import lodashUniqBy from "lodash.uniqby";
-import {Dictionary as lodashDictionary} from "lodash";
+import { Dictionary as lodashDictionary } from "lodash";
 
 import powerbi from "powerbi-visuals-api";
 
@@ -31,10 +31,10 @@ import powerbi from "powerbi-visuals-api";
 import * as SVGUtil from "powerbi-visuals-utils-svgutils";
 
 // powerbi.extensibility.utils.type
-import {pixelConverter as PixelConverter, valueType} from "powerbi-visuals-utils-typeutils";
+import { pixelConverter as PixelConverter, valueType } from "powerbi-visuals-utils-typeutils";
 
 // powerbi.extensibility.utils.formatting
-import {textMeasurementService, valueFormatter as ValueFormatter} from "powerbi-visuals-utils-formattingutils";
+import { textMeasurementService, valueFormatter as ValueFormatter } from "powerbi-visuals-utils-formattingutils";
 
 // powerbi.extensibility.utils.interactivity
 import {
@@ -50,7 +50,7 @@ import {
 } from "powerbi-visuals-utils-tooltiputils";
 
 // powerbi.extensibility.utils.color
-import {ColorHelper} from "powerbi-visuals-utils-colorutils";
+import { ColorHelper } from "powerbi-visuals-utils-colorutils";
 
 // powerbi.extensibility.utils.chart.legend
 import {
@@ -63,7 +63,7 @@ import {
 } from "powerbi-visuals-utils-chartutils";
 
 // behavior
-import {Behavior, BehaviorOptions} from "./behavior";
+import { Behavior, BehaviorOptions } from "./behavior";
 import {
     DayOffData,
     DaysOffDataForAddition,
@@ -83,8 +83,8 @@ import {
     TaskTypeMetadata,
     TaskTypes
 } from "./interfaces";
-import {DurationHelper} from "./durationHelper";
-import {GanttColumns} from "./columns";
+import { DurationHelper } from "./durationHelper";
+import { GanttColumns } from "./columns";
 import {
     drawCircle,
     drawDiamond,
@@ -95,12 +95,12 @@ import {
     isStringNotNullEmptyOrUndefined,
     isValidDate
 } from "./utils";
-import {drawCollapseButton, drawExpandButton, drawMinusButton, drawPlusButton} from "./drawButtons";
-import {TextProperties} from "powerbi-visuals-utils-formattingutils/lib/src/interfaces";
+import { drawCollapseButton, drawExpandButton, drawMinusButton, drawPlusButton } from "./drawButtons";
+import { TextProperties } from "powerbi-visuals-utils-formattingutils/lib/src/interfaces";
 
-import {FormattingSettingsService} from "powerbi-visuals-utils-formattingmodel";
-import {DateTypeCardSettings, GanttChartSettingsModel} from "./ganttChartSettingsModels";
-import {DateType, DurationUnit, GanttRole, LabelForDate, MilestoneShape, ResourceLabelPosition} from "./enums";
+import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
+import { DateTypeCardSettings, GanttChartSettingsModel } from "./ganttChartSettingsModels";
+import { DateType, DurationUnit, GanttRole, LabelForDate, MilestoneShape, ResourceLabelPosition } from "./enums";
 
 // d3
 type Selection<T1, T2 = T1> = d3Selection<any, T1, any, T2>;
@@ -964,7 +964,7 @@ export class Gantt implements IVisual {
 
     private static createTask(values: GanttColumns<any>, index: number, hasHighlights: boolean, categoricalValues: powerbi.DataViewValueColumns, color: string, completion: number, categoryValue: string | number | Date | boolean, endDate: Date, duration: number, taskType: TaskTypeMetadata, selectionBuilder: powerbi.visuals.ISelectionIdBuilder, wasDowngradeDurationUnit: boolean, stepDurationTransformation: number) {
         const extraInformation: ExtraInformation[] = this.getExtraInformationFromValues(values, index);
-        
+
         let resource: string = (values.Resource && values.Resource[index] as string) || "";
         resource += " - ";
         extraInformation.forEach(values => {
@@ -975,7 +975,7 @@ export class Gantt implements IVisual {
         const milestone: string = (values.Milestones && !lodashIsEmpty(values.Milestones[index]) && values.Milestones[index]) || null;
 
         const startDate: Date = (values.StartDate && values.StartDate[index]
-                && isValidDate(new Date(values.StartDate[index])) && new Date(values.StartDate[index]))
+            && isValidDate(new Date(values.StartDate[index])) && new Date(values.StartDate[index]))
             || new Date(Date.now());
 
         let highlight: number = null;
@@ -1014,7 +1014,7 @@ export class Gantt implements IVisual {
             highlight: highlight !== null
         };
 
-        return {taskParentName, milestone, startDate, extraInformation, highlight, task};
+        return { taskParentName, milestone, startDate, extraInformation, highlight, task };
     }
 
     private static computeTaskGroupAttributes(
@@ -1588,7 +1588,7 @@ export class Gantt implements IVisual {
         this.updateInternal(options);
     }
 
-    private updateInternal(options: VisualUpdateOptions) : void {
+    private updateInternal(options: VisualUpdateOptions): void {
         this.viewModel = this.converter(options.dataViews[0], this.host, this.colors, this.colorHelper, this.localizationManager);
 
         // for duplicated milestone types
@@ -1764,12 +1764,12 @@ export class Gantt implements IVisual {
         endDate: Date,
         ticksCount: number,
         scrollbarVisible: boolean): IAxisProperties {
-    
+
         // Adjust startDate to the nearest Monday
         const dayOfWeek = startDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
         const daysToMonday = (dayOfWeek === 0) ? 1 : (8 - dayOfWeek); // Calculate days to next Monday
         startDate = new Date(startDate.getTime() + daysToMonday * MillisecondsInADay);
-    
+
         // Generate ticks for every Monday
         const ticks: Date[] = [];
         const currentTick = new Date(startDate);
@@ -1777,7 +1777,7 @@ export class Gantt implements IVisual {
             ticks.push(new Date(currentTick));
             currentTick.setDate(currentTick.getDate() + 7); // Move to the next Monday
         }
-    
+
         const dataTypeDatetime: ValueType = ValueType.fromPrimitiveTypeAndCategory(PrimitiveType.Date);
         const category: DataViewMetadataColumn = {
             displayName: this.localizationManager.getDisplayName("Role_StartDate"),
@@ -1785,7 +1785,7 @@ export class Gantt implements IVisual {
             type: dataTypeDatetime,
             index: 0
         };
-    
+
         const visualOptions: GanttCalculateScaleAndDomainOptions = {
             viewport: viewportIn,
             margin: this.margin,
@@ -1800,25 +1800,25 @@ export class Gantt implements IVisual {
             trimOrdinalDataOnOverflow: false,
             forcedTickCount: ticks.length
         };
-    
+
         const width: number = viewportIn.width;
         const axes: IAxisProperties = this.calculateAxesProperties(viewportIn, visualOptions, category);
-    
+
         // Override ticks with custom Monday ticks
         axes.axis.ticks(ticks.length).tickValues(ticks);
-    
+
         axes.willLabelsFit = AxisHelper.LabelLayoutStrategy.willLabelsFit(
             axes,
             width,
             textMeasurementService.measureSvgTextWidth,
             textProperties);
-    
+
         // If labels do not fit, and we are not scrolling, try word breaking
         axes.willLabelsWordBreak = (!axes.willLabelsFit && !scrollbarVisible) && AxisHelper.LabelLayoutStrategy.willLabelsWordBreak(
             axes, this.margin, width, textMeasurementService.measureSvgTextWidth,
             textMeasurementService.estimateSvgTextHeight, textMeasurementService.getTailoredTextOrDefault,
             textProperties);
-    
+
         return axes;
     }
 
@@ -1836,12 +1836,12 @@ export class Gantt implements IVisual {
             }
             return moment(date).format(Gantt.DefaultValues.DateFormatStrings[dateType]);
         };
-        
+
         const xAxisDateFormatter: IValueFormatter = ValueFormatter.create({
             format: Gantt.DefaultValues.DateFormatStrings[dateType],
             cultureSelector
         });
-        xAxisDateFormatter.format = customDateFormatter;        
+        xAxisDateFormatter.format = customDateFormatter;
 
         const xAxisProperties: IAxisProperties = AxisHelper.createAxis({
             pixelSpan: viewportIn.width,
@@ -2508,7 +2508,7 @@ export class Gantt implements IVisual {
     private MilestonesRender(
         taskSelection: Selection<Task>,
         taskConfigHeight: number): void {
-            const taskMilestones: Selection<any> = taskSelection
+        const taskMilestones: Selection<any> = taskSelection
             .selectAll(Gantt.TaskMilestone.selectorName)
             .data((d: Task) => {
                 const nestedByDate = d3Nest().key((d: Milestone) => d.start.toDateString()).entries(d.Milestones);
@@ -2875,13 +2875,15 @@ export class Gantt implements IVisual {
         }
 
         const barHeight: number = Gantt.getBarHeight(taskConfigHeight);
+        const leftPadding = -10;
+
         switch (taskResourcePosition) {
             case ResourceLabelPosition.Right:
-                return (Gantt.TimeScale(task.end) + (taskResourceFontSize / 2) + Gantt.RectRound) || 0;
+                return (Gantt.TimeScale(task.end) + (taskResourceFontSize / 2) + Gantt.RectRound + leftPadding) || 0;
             case ResourceLabelPosition.Top:
-                return (Gantt.TimeScale(task.start) + Gantt.RectRound) || 0;
+                return (Gantt.TimeScale(task.start) + Gantt.RectRound + leftPadding) || 0;
             case ResourceLabelPosition.Inside:
-                return (Gantt.TimeScale(task.start) + barHeight / (2 * Gantt.ResourceLabelDefaultDivisionCoefficient) + Gantt.RectRound) || 0;
+                return (Gantt.TimeScale(task.start) + barHeight / (2 * Gantt.ResourceLabelDefaultDivisionCoefficient) + Gantt.RectRound + leftPadding) || 0;
         }
     }
 
@@ -3152,7 +3154,7 @@ export class Gantt implements IVisual {
         const settings: GanttChartSettingsModel = this.formattingSettings;
 
         settings.cards.forEach(element => {
-            switch(element.name) {
+            switch (element.name) {
                 case Gantt.MilestonesPropertyIdentifier.objectName: {
                     if (this.viewModel && !this.viewModel.isDurationFilled && !this.viewModel.isEndDateFilled) {
                         return;
