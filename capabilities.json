@@ -8,7 +8,7 @@
         },
         {
             "name": "Task",
-            "displayName": "Task",
+            "displayName": "Resource",
             "displayNameKey": "Role_Task",
             "kind": "Grouping"
         },
@@ -46,7 +46,7 @@
         },
         {
             "name": "Completion",
-            "displayName": "% Completion",
+            "displayName": "Planning Status",
             "displayNameKey": "Role_Completion",
             "kind": "Measure",
             "requiredTypes": [
@@ -60,20 +60,20 @@
         },
         {
             "name": "Resource",
-            "displayName": "Resource",
+            "displayName": "Project",
             "displayNameKey": "Role_Resource",
             "kind": "Grouping"
         },
         {
             "name": "ExtraInformation",
-            "displayName": "Tooltips",
+            "displayName": "Projecttask and extra's",
             "displayNameKey": "Role_Tooltips",
             "kind": "Grouping"
         },
         {
             "name": "Milestones",
             "displayName": "Milestones",
-            "displayNameKey": "Milestones",
+            "displayNameKey": "Role_Milestones",
             "kind": "Grouping"
         }
     ],

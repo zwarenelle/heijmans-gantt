@@ -1,3 +1,10 @@
+## 4.0.1.1
+
+- Added top padding for tasks
+- Updated LICENSE
+- Updated DisplayNames in capabilities including nl-NL translations
+- Added support for multiple columns (values) displayed as text on the task bar
+
 ## 4.0.1.0
 
 - Added support for dynamic tasklanes and groups without the use of parents
@@ -8,7 +15,7 @@
 
 ## 3.0.11
 
-# Remove restrictions on legend width
+- Remove restrictions on legend width
 
 ## 3.0.10
 

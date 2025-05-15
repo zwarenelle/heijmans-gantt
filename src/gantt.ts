@@ -296,6 +296,7 @@ export class Gantt implements IVisual {
     private static MilestoneTop: number = 0;
     private static DividerForCalculatingPadding: number = 4;
     private static LabelTopOffsetForPadding: number = 0.5;
+    private static TaskBarTopPadding: number = 5;
     private static DividerForCalculatingCenter: number = 2;
     private static SubtasksLeftMargin: number = 10;
     private static NotCompletedTaskOpacity: number = .2;
@@ -966,9 +967,8 @@ export class Gantt implements IVisual {
         const extraInformation: ExtraInformation[] = this.getExtraInformationFromValues(values, index);
 
         let resource: string = (values.Resource && values.Resource[index] as string) || "";
-        resource += " - ";
         extraInformation.forEach(values => {
-            resource += values.value;
+            resource += " - " + values.value;
         });
 
         const taskParentName: string = (values.Parent && values.Parent[index] as string) || null;
@@ -1935,8 +1935,12 @@ export class Gantt implements IVisual {
         }
 
         const height = PixelConverter.toString(
-            groupedTasks.reduce((sum, g) => sum + g.rowHeight, 0) + this.margin.top + fullResourceLabelMargin
-        ); const width = PixelConverter.toString(widthBeforeConversion);
+            Gantt.TaskBarTopPadding +
+            groupedTasks.reduce((sum, g) => sum + g.rowHeight, 0) +
+            this.margin.top +
+            fullResourceLabelMargin
+        );
+        const width = PixelConverter.toString(widthBeforeConversion);
 
         this.ganttSvg
             .attr("height", height)
@@ -2422,7 +2426,7 @@ export class Gantt implements IVisual {
     private drawTaskRect(task: Task, taskConfigHeight: number, barsRoundedCorners: boolean, groupIndex: number, groupedTasks: GroupedTask[]): string {
         const x = this.hasNotNullableDates ? Gantt.TimeScale(task.start) : 0;
         const lane = task.lane || 0;
-        const y = this.getGroupCumulativeY(groupedTasks, groupIndex)
+        const y = Gantt.TaskBarTopPadding + this.getGroupCumulativeY(groupedTasks, groupIndex)
             + lane * (Gantt.getBarHeight(taskConfigHeight) + 2);
         const width = this.getTaskRectWidth(task);
         const height = Gantt.getBarHeight(taskConfigHeight);
@@ -2563,7 +2567,7 @@ export class Gantt implements IVisual {
         const transformForMilestone = (groupIndex: number, groupedTasks: GroupedTask[], lane: number, start: Date, taskConfigHeight: number) => {
             return SVGManipulations.translate(
                 Gantt.TimeScale(start) - Gantt.getBarHeight(taskConfigHeight) / 4,
-                this.getGroupCumulativeY(groupedTasks, groupIndex) + lane * (Gantt.getBarHeight(taskConfigHeight) + 2)
+                Gantt.TaskBarTopPadding + this.getGroupCumulativeY(groupedTasks, groupIndex) + lane * (Gantt.getBarHeight(taskConfigHeight) + 2)
             );
         };
         const taskMilestonesSelection = taskMilestonesMerged.selectAll("path");
@@ -2676,7 +2680,7 @@ export class Gantt implements IVisual {
                     }
                 }
                 const y = this.getGroupCumulativeY(groupedTasks, actualGroupIndex)
-                    + lane * (Gantt.getBarHeight(taskConfigHeight) + 2);
+                    + lane * (Gantt.getBarHeight(taskConfigHeight) + 2) + Gantt.TaskBarTopPadding;
                 const height = Gantt.getBarHeight(taskConfigHeight);
                 const radius = this.viewModel.settings.generalCardSettings.barsRoundedCorners.value ? Gantt.RectRound : 0;
                 const width = getTaskRectDaysOffWidth(task);
@@ -2836,7 +2840,8 @@ export class Gantt implements IVisual {
                 .attr("y", (task: Task) => {
                     const groupIndex = task.groupIndex;
                     const lane = task.lane || 0;
-                    return this.getGroupCumulativeY(groupedTasks, groupIndex)
+                    return Gantt.TaskBarTopPadding
+                        + this.getGroupCumulativeY(groupedTasks, groupIndex)
                         + Gantt.getResourceLabelYOffset(taskConfigHeight, taskResourceFontSize, taskResourcePosition)
                         + lane * (Gantt.getBarHeight(taskConfigHeight) + 2);
                 })
@@ -3104,7 +3109,8 @@ export class Gantt implements IVisual {
                 x1: Gantt.TimeScale(date),
                 y1: Gantt.MilestoneTop,
                 x2: Gantt.TimeScale(date),
-                y2: this.getMilestoneLineLength(tasks.length),
+                // y2: this.getMilestoneLineLengthFromGroupedTasks(tasks),
+                y2: this.getMilestoneLineLengthFromGroupedTasks(),
                 tooltipInfo: Gantt.getTooltipForMilestoneLine(date.toLocaleDateString(), this.localizationManager, dateTypeSettings, [title])
             };
             line.push(lineOptions);
@@ -3136,6 +3142,15 @@ export class Gantt implements IVisual {
         chartLineSelection
             .exit()
             .remove();
+    }
+
+    // private getMilestoneLineLengthFromGroupedTasks(groupedTasks: GroupedTask[]): number {
+    private getMilestoneLineLengthFromGroupedTasks(): number {
+        // Sum all row heights and add top margin
+        // return groupedTasks.reduce((sum, g) => sum + g.rowHeight, 0) + this.margin.top;
+
+        // Match the SVG height exactly
+        return parseFloat(this.ganttSvg.attr("height") || "0");
     }
 
     private scrollToMilestoneLine(axisLength: number,
