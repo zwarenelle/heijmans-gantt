@@ -22,7 +22,6 @@ import lodashMax from "lodash.max";
 import lodashMaxBy from "lodash.maxby";
 import lodashGroupBy from "lodash.groupby";
 import lodashClone from "lodash.clone";
-import lodashUniqBy from "lodash.uniqby";
 import { Dictionary as lodashDictionary } from "lodash";
 
 import powerbi from "powerbi-visuals-api";
@@ -95,7 +94,7 @@ import {
     isStringNotNullEmptyOrUndefined,
     isValidDate
 } from "./utils";
-import { drawCollapseButton, drawExpandButton, drawMinusButton, drawPlusButton } from "./drawButtons";
+import { drawCollapseButton, drawExpandButton, } from "./drawButtons";
 import { TextProperties } from "powerbi-visuals-utils-formattingutils/lib/src/interfaces";
 
 import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
@@ -208,6 +207,7 @@ export class Gantt implements IVisual {
     private static LegendItems: ClassAndSelector = createClassAndSelector("legendItem");
     private static LegendTitle: ClassAndSelector = createClassAndSelector("legendTitle");
     private static ClickableArea: ClassAndSelector = createClassAndSelector("clickableArea");
+    private currentGroupedTasks: GroupedTask[];
 
     private viewport: IViewport;
     private colors: IColorPalette;
@@ -1011,7 +1011,9 @@ export class Gantt implements IVisual {
                 tooltipInfo: null,
                 category: categoryValue as string
             }] : [],
-            highlight: highlight !== null
+            highlight: highlight !== null,
+            lane: null,
+            groupIndex: null
         };
 
         return { taskParentName, milestone, startDate, extraInformation, highlight, task };
@@ -1159,7 +1161,9 @@ export class Gantt implements IVisual {
                 selected: null,
                 identity: selectionBuilder.createSelectionId(),
                 Milestones: milestone && startDate ? [{ type: milestone, start: startDate, tooltipInfo: null, category: categoryValue as string }] : [],
-                highlight: highlight !== null
+                highlight: highlight !== null,
+                lane: null,
+                groupIndex: null
             };
 
             tasks.push(parentTask);
@@ -1647,7 +1651,21 @@ export class Gantt implements IVisual {
         this.collapsedTasks = JSON.parse(settings.collapsedTasksCardSettings.list.value);
         const groupTasks = this.viewModel.settings.generalCardSettings.groupTasks.value;
         const groupedTasks: GroupedTask[] = Gantt.getGroupTasks(tasks, groupTasks, this.collapsedTasks);
-        // do something with task ids
+
+        groupedTasks.forEach((group, groupIndex) => {
+            group.tasks.forEach(task => {
+                task.groupIndex = groupIndex;
+            });
+        });
+
+        // Assign lanes for overlapping tasks in each group
+        groupedTasks.forEach(group => Gantt.assignTaskLanes(group.tasks));
+
+        groupedTasks.forEach(group => {
+            group.maxLane = Gantt.getMaxLane(group.tasks);
+            group.rowHeight = (group.maxLane + 1) * (this.viewModel.settings.taskConfigCardSettings.height.value || DefaultChartLineHeight);
+        });
+
         this.updateCommonTasks(groupedTasks);
         this.updateCommonMilestones(groupedTasks);
 
@@ -1822,6 +1840,43 @@ export class Gantt implements IVisual {
         return axes;
     }
 
+    /**
+ * Assigns a 'lane' index to each task in a group so overlapping tasks are stacked.
+ * Modifies tasks in-place.
+ */
+    private static assignTaskLanes(tasks: Task[]): void {
+        // Sort by start time
+        const sorted = tasks.slice().sort((a, b) => a.start.getTime() - b.start.getTime());
+        const lanes: Task[][] = [];
+
+        sorted.forEach(task => {
+            let placed = false;
+            for (let i = 0; i < lanes.length; i++) {
+                // Check if last task in this lane ends before this task starts
+                const last = lanes[i][lanes[i].length - 1];
+                if (!last.end || last.end.getTime() <= task.start.getTime()) {
+                    lanes[i].push(task);
+                    task.lane = i;
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
+                // New lane
+                task.lane = lanes.length;
+                lanes.push([task]);
+            }
+        });
+    }
+
+    private getGroupCumulativeY(groupedTasks: GroupedTask[], groupIndex: number): number {
+        let y = 0;
+        for (let i = 0; i < groupIndex; i++) {
+            y += groupedTasks[i].rowHeight + this.getResourceLabelTopMargin();
+        }
+        return y;
+    }
+
     private calculateAxesProperties(
         viewportIn: IViewport,
         options: GanttCalculateScaleAndDomainOptions,
@@ -1879,8 +1934,9 @@ export class Gantt implements IVisual {
             widthBeforeConversion += Gantt.DefaultValues.ResourceWidth / 2;
         }
 
-        const height = PixelConverter.toString(groupedTasks.length * (settings.taskConfigCardSettings.height.value || DefaultChartLineHeight) + this.margin.top + fullResourceLabelMargin);
-        const width = PixelConverter.toString(widthBeforeConversion);
+        const height = PixelConverter.toString(
+            groupedTasks.reduce((sum, g) => sum + g.rowHeight, 0) + this.margin.top + fullResourceLabelMargin
+        ); const width = PixelConverter.toString(widthBeforeConversion);
 
         this.ganttSvg
             .attr("height", height)
@@ -2002,8 +2058,8 @@ export class Gantt implements IVisual {
     // eslint-disable-next-line max-lines-per-function
     private updateTaskLabels(
         tasks: GroupedTask[],
-        width: number): void {
-
+        width: number
+    ): void {
         let axisLabel: Selection<any>;
         const taskLabelsShow: boolean = this.viewModel.settings.taskLabelsCardSettings.show.value;
         const displayGridLines: boolean = this.viewModel.settings.generalCardSettings.displayGridLines.value;
@@ -2013,6 +2069,15 @@ export class Gantt implements IVisual {
         const taskConfigHeight: number = this.viewModel.settings.taskConfigCardSettings.height.value || DefaultChartLineHeight;
         const categoriesAreaBackgroundColor: string = this.colorHelper.getThemeColor();
         const isHighContrast: boolean = this.colorHelper.isHighContrast;
+
+        // Flatten out lanes for rendering labels/gridlines
+        const labelRows = tasks.flatMap((group, groupIndex) =>
+            Array.from({ length: group.maxLane + 1 }, (_, lane) => ({
+                group,
+                groupIndex,
+                lane
+            }))
+        );
 
         this.updateCollapseAllGroup(categoriesAreaBackgroundColor, taskLabelsShow);
 
@@ -2029,7 +2094,7 @@ export class Gantt implements IVisual {
 
             axisLabel = this.lineGroup
                 .selectAll(Gantt.Label.selectorName)
-                .data(tasks);
+                .data(labelRows);
 
             const axisLabelGroup = axisLabel
                 .enter()
@@ -2037,79 +2102,32 @@ export class Gantt implements IVisual {
                 .merge(axisLabel);
 
             axisLabelGroup.classed(Gantt.Label.className, true)
-                .attr("transform", (task: GroupedTask) => SVGManipulations.translate(0, this.margin.top + this.getTaskLabelCoordinateY(task.index)));
+                .attr("transform", (d) =>
+                    SVGManipulations.translate(
+                        0,
+                        this.margin.top +
+                        this.getGroupCumulativeY(tasks, d.groupIndex) +
+                        d.lane * (Gantt.getBarHeight(taskConfigHeight) + 2)
+                    )
+                );
 
-            const clickableArea = axisLabelGroup
-                .append("g")
-                .classed(Gantt.ClickableArea.className, true)
-                .merge(axisLabelGroup);
-
-            clickableArea
+            // Main label text (only on first lane)
+            axisLabelGroup
                 .append("text")
-                .attr("x", (task: GroupedTask) => (Gantt.TaskLineCoordinateX +
-                    (task.tasks.every((task: Task) => !!task.parent)
-                        ? Gantt.SubtasksLeftMargin
-                        : (task.tasks[0].children && !!task.tasks[0].children.length) ? this.parentLabelOffset : 0)))
-                .attr("class", (task: GroupedTask) => task.tasks[0].children ? "parent" : task.tasks[0].parent ? "child" : "normal-node")
-                .attr("y", (task: GroupedTask) => (task.index + 0.5) * this.getResourceLabelTopMargin())
+                .attr("x", Gantt.TaskLineCoordinateX)
+                .attr("y", taskConfigHeight / 2)
                 .attr("fill", taskLabelsColor)
                 .attr("stroke-width", Gantt.AxisLabelStrokeWidth)
                 .style("font-size", PixelConverter.fromPoint(taskLabelsFontSize))
-                .text((task: GroupedTask) => task.name)
+                .text((d) => d.lane === 0 ? d.group.name : "")
                 .call(AxisHelper.LabelLayoutStrategy.clip, width - Gantt.AxisLabelClip, textMeasurementService.svgEllipsis)
                 .append("title")
-                .text((task: GroupedTask) => task.name);
+                .text((d) => d.lane === 0 ? d.group.name : "");
 
-            const buttonSelection = clickableArea
-                .filter((task: GroupedTask) => task.tasks[0].children && !!task.tasks[0].children.length)
-                .append("svg")
-                .attr("viewBox", "0 0 32 32")
-                .attr("width", Gantt.DefaultValues.IconWidth)
-                .attr("height", Gantt.DefaultValues.IconHeight)
-                .attr("y", (task: GroupedTask) => (task.index + 0.5) * this.getResourceLabelTopMargin() - Gantt.DefaultValues.IconMargin)
-                .attr("x", Gantt.DefaultValues.BarMargin);
-
-            clickableArea
-                .append("rect")
-                .attr("width", 2 * Gantt.DefaultValues.IconWidth)
-                .attr("height", 2 * Gantt.DefaultValues.IconWidth)
-                .attr("y", (task: GroupedTask) => (task.index + 0.5) * this.getResourceLabelTopMargin() - Gantt.DefaultValues.IconMargin)
-                .attr("x", Gantt.DefaultValues.BarMargin)
-                .attr("fill", "transparent");
-
-            const buttonPlusMinusColor = this.colorHelper.getHighContrastColor("foreground", Gantt.DefaultValues.PlusMinusColor);
-            buttonSelection
-                .each(function (task: GroupedTask) {
-                    const element = d3Select(this);
-                    if (!task.tasks[0].children[0].visibility) {
-                        drawPlusButton(element, buttonPlusMinusColor);
-                    } else {
-                        drawMinusButton(element, buttonPlusMinusColor);
-                    }
-                });
-
-            let parentTask: string = "";
-            let childrenCount = 0;
-            let currentChildrenIndex = 0;
+            // Grid line for each lane
             axisLabelGroup
                 .append("rect")
-                .attr("x", (task: GroupedTask) => {
-                    const isGrouped = this.viewModel.settings.generalCardSettings.groupTasks.value;
-                    const drawStandardMargin: boolean = !task.tasks[0].parent || task.tasks[0].parent && task.tasks[0].parent !== parentTask;
-                    parentTask = task.tasks[0].parent ? task.tasks[0].parent : task.tasks[0].name;
-                    if (task.tasks[0].children) {
-                        parentTask = task.tasks[0].name;
-                        childrenCount = isGrouped ? lodashUniqBy(task.tasks[0].children, "name").length : task.tasks[0].children.length;
-                        currentChildrenIndex = 0;
-                    }
-
-                    if (task.tasks[0].parent === parentTask) {
-                        currentChildrenIndex++;
-                    }
-                    const isLastChild = childrenCount && childrenCount === currentChildrenIndex;
-                    return drawStandardMargin || isLastChild ? Gantt.DefaultValues.ParentTaskLeftMargin : Gantt.DefaultValues.ChildTaskLeftMargin;
-                })
-                .attr("y", (task: GroupedTask) => (task.index + 1) * this.getResourceLabelTopMargin() + (taskConfigHeight - this.viewModel.settings.taskLabelsCardSettings.fontSize.value) / 2)
+                .attr("y", 0)
                 .attr("width", () => displayGridLines ? this.viewport.width : 0)
                 .attr("height", 1)
                 .attr("fill", this.colorHelper.getHighContrastColor("foreground", Gantt.DefaultValues.TaskLineColor));
@@ -2284,6 +2302,8 @@ export class Gantt implements IVisual {
             .selectAll(Gantt.TaskGroup.selectorName)
             .data(groupedTasks);
 
+        this.currentGroupedTasks = groupedTasks;
+
         taskGroupSelection
             .exit()
             .remove();
@@ -2298,10 +2318,10 @@ export class Gantt implements IVisual {
 
         const taskSelection: Selection<Task> = this.taskSelectionRectRender(taskGroupSelectionMerged);
         this.taskMainRectRender(taskSelection, taskConfigHeight, generalBarsRoundedCorners);
-        this.MilestonesRender(taskSelection, taskConfigHeight);
+        this.MilestonesRender(taskSelection, taskConfigHeight, groupedTasks);
         this.taskProgressRender(taskSelection);
-        this.taskDaysOffRender(taskSelection, taskConfigHeight);
-        this.taskResourceRender(taskSelection, taskConfigHeight);
+        this.taskDaysOffRender(taskSelection, taskConfigHeight, groupedTasks);
+        this.taskResourceRender(taskSelection, taskConfigHeight, groupedTasks);
 
         this.renderTooltip(taskSelection);
     }
@@ -2397,25 +2417,24 @@ export class Gantt implements IVisual {
             : 0;
     }
 
-
     /**
      *
      * @param task
      * @param taskConfigHeight
      * @param barsRoundedCorners are bars with rounded corners
      */
-    private drawTaskRect(task: Task, taskConfigHeight: number, barsRoundedCorners: boolean): string {
-        const x = this.hasNotNullableDates ? Gantt.TimeScale(task.start) : 0,
-            y = Gantt.getBarYCoordinate(task.index, taskConfigHeight) + (task.index + 1) * this.getResourceLabelTopMargin(),
-            width = this.getTaskRectWidth(task),
-            height = Gantt.getBarHeight(taskConfigHeight),
-            radius = Gantt.RectRound;
-
+    private drawTaskRect(task: Task, taskConfigHeight: number, barsRoundedCorners: boolean, groupIndex: number, groupedTasks: GroupedTask[]): string {
+        const x = this.hasNotNullableDates ? Gantt.TimeScale(task.start) : 0;
+        const lane = task.lane || 0;
+        const y = this.getGroupCumulativeY(groupedTasks, groupIndex)
+            + lane * (Gantt.getBarHeight(taskConfigHeight) + 2);
+        const width = this.getTaskRectWidth(task);
+        const height = Gantt.getBarHeight(taskConfigHeight);
+        const radius = Gantt.RectRound;
 
         if (barsRoundedCorners && width >= 2 * radius) {
             return drawRoundedRectByPath(x, y, width, height, radius);
         }
-
         return drawNotRoundedRectByPath(x, y, width, height);
     }
 
@@ -2444,7 +2463,8 @@ export class Gantt implements IVisual {
 
         let index = 0, groupedTaskIndex = 0;
         taskRectMerged
-            .attr("d", (task: Task) => this.drawTaskRect(task, taskConfigHeight, barsRoundedCorners))
+            .attr("d", (task: Task) =>
+                this.drawTaskRect(task, taskConfigHeight, barsRoundedCorners, task.groupIndex, this.currentGroupedTasks))
             .attr("width", (task: Task) => this.getTaskRectWidth(task))
             .style("fill", (task: Task) => {
                 // logic used for grouped tasks, when there are several bars related to one category
@@ -2505,9 +2525,7 @@ export class Gantt implements IVisual {
      * @param taskSelection Task Selection
      * @param taskConfigHeight Task heights from settings
      */
-    private MilestonesRender(
-        taskSelection: Selection<Task>,
-        taskConfigHeight: number): void {
+    private MilestonesRender(taskSelection: Selection<Task>, taskConfigHeight: number, groupedTasks: GroupedTask[]): void {
         const taskMilestones: Selection<any> = taskSelection
             .selectAll(Gantt.TaskMilestone.selectorName)
             .data((d: Task) => {
@@ -2546,10 +2564,12 @@ export class Gantt implements IVisual {
 
         taskMilestonesMerged.classed(Gantt.TaskMilestone.className, true);
 
-        const transformForMilestone = (id: number, start: Date) => {
-            return SVGManipulations.translate(Gantt.TimeScale(start) - Gantt.getBarHeight(taskConfigHeight) / 4, Gantt.getBarYCoordinate(id, taskConfigHeight) + (id + 1) * this.getResourceLabelTopMargin());
+        const transformForMilestone = (groupIndex: number, groupedTasks: GroupedTask[], lane: number, start: Date, taskConfigHeight: number) => {
+            return SVGManipulations.translate(
+                Gantt.TimeScale(start) - Gantt.getBarHeight(taskConfigHeight) / 4,
+                this.getGroupCumulativeY(groupedTasks, groupIndex) + lane * (Gantt.getBarHeight(taskConfigHeight) + 2)
+            );
         };
-
         const taskMilestonesSelection = taskMilestonesMerged.selectAll("path");
         const taskMilestonesSelectionData = taskMilestonesSelection.data(milestonesData => <MilestonePath[]>milestonesData.values);
 
@@ -2567,7 +2587,22 @@ export class Gantt implements IVisual {
         if (this.hasNotNullableDates) {
             taskMilestonesSelectionMerged
                 .attr("d", (data: MilestonePath) => this.getMilestonePath(data.type, taskConfigHeight))
-                .attr("transform", (data: MilestonePath) => transformForMilestone(data.taskID, data.start))
+                .attr("transform", (data: MilestonePath) => {
+                    // Use groupIndex directly from the task
+                    const groupIndex = (() => {
+                        // Find the task by index in groupedTasks
+                        for (let i = 0; i < groupedTasks.length; i++) {
+                            if (groupedTasks[i].tasks.some(t => t.index === data.taskID)) {
+                                const task = groupedTasks[i].tasks.find(t => t.index === data.taskID);
+                                return task.groupIndex;
+                            }
+                        }
+                        return 0;
+                    })();
+                    const group = groupedTasks[groupIndex];
+                    const task = group.tasks.find(t => t.index === data.taskID);
+                    return transformForMilestone(groupIndex, groupedTasks, task.lane || 0, data.start, taskConfigHeight);
+                })
                 .attr("fill", (data: MilestonePath) => this.getMilestoneColor(data.type));
         }
 
@@ -2579,10 +2614,7 @@ export class Gantt implements IVisual {
      * @param taskSelection Task Selection
      * @param taskConfigHeight Task heights from settings
      */
-    private taskDaysOffRender(
-        taskSelection: Selection<Task>,
-        taskConfigHeight: number): void {
-
+    private taskDaysOffRender(taskSelection: Selection<Task>, taskConfigHeight: number, groupedTasks: GroupedTask[]): void {
         const taskDaysOffColor: string = this.viewModel.settings.daysOffCardSettings.fill.value.value;
         const taskDaysOffShow: boolean = this.viewModel.settings.daysOffCardSettings.show.value;
 
@@ -2634,12 +2666,24 @@ export class Gantt implements IVisual {
                 return width;
             };
 
-            const drawTaskRectDaysOff = (task: TaskDaysOff) => {
+            const drawTaskRectDaysOff = (task: TaskDaysOff, groupIndex: number, groupedTasks: GroupedTask[]) => {
                 let x = this.hasNotNullableDates ? Gantt.TimeScale(task.daysOff[0]) : 0;
-                const y: number = Gantt.getBarYCoordinate(task.id, taskConfigHeight) + (task.id + 1) * this.getResourceLabelTopMargin(),
-                    height: number = Gantt.getBarHeight(taskConfigHeight),
-                    radius: number = this.viewModel.settings.generalCardSettings.barsRoundedCorners.value ? Gantt.RectRound : 0,
-                    width: number = getTaskRectDaysOffWidth(task);
+                // Find the task to get its lane and groupIndex
+                let lane = 0;
+                let actualGroupIndex = groupIndex;
+                for (let i = 0; i < groupedTasks.length; i++) {
+                    const found = groupedTasks[i].tasks.find(t => t.index === task.id);
+                    if (found) {
+                        lane = found.lane || 0;
+                        actualGroupIndex = found.groupIndex;
+                        break;
+                    }
+                }
+                const y = this.getGroupCumulativeY(groupedTasks, actualGroupIndex)
+                    + lane * (Gantt.getBarHeight(taskConfigHeight) + 2);
+                const height = Gantt.getBarHeight(taskConfigHeight);
+                const radius = this.viewModel.settings.generalCardSettings.barsRoundedCorners.value ? Gantt.RectRound : 0;
+                const width = getTaskRectDaysOffWidth(task);
 
                 if (width < radius) {
                     x = x - width / 2;
@@ -2653,7 +2697,18 @@ export class Gantt implements IVisual {
             };
 
             tasksDaysOffMerged
-                .attr("d", (task: TaskDaysOff) => drawTaskRectDaysOff(task))
+                .attr("d", (task: TaskDaysOff) => {
+                    // Use groupIndex from the task
+                    let groupIndex = 0;
+                    for (let i = 0; i < groupedTasks.length; i++) {
+                        if (groupedTasks[i].tasks.some(t => t.index === task.id)) {
+                            const found = groupedTasks[i].tasks.find(t => t.index === task.id);
+                            groupIndex = found.groupIndex;
+                            break;
+                        }
+                    }
+                    return drawTaskRectDaysOff(task, groupIndex, groupedTasks);
+                })
                 .style("fill", taskDaysOffColor)
                 .attr("width", (task: TaskDaysOff) => getTaskRectDaysOffWidth(task));
 
@@ -2730,7 +2785,9 @@ export class Gantt implements IVisual {
      */
     private taskResourceRender(
         taskSelection: Selection<Task>,
-        taskConfigHeight: number): void {
+        taskConfigHeight: number,
+        groupedTasks: GroupedTask[]
+    ): void {
 
         const groupTasks: boolean = this.viewModel.settings.generalCardSettings.groupTasks.value;
         let newLabelPosition: ResourceLabelPosition | null = null;
@@ -2780,9 +2837,13 @@ export class Gantt implements IVisual {
 
             taskResourceMerged
                 .attr("x", (task: Task) => this.getResourceLabelXCoordinate(task, taskConfigHeight, taskResourceFontSize, taskResourcePosition))
-                .attr("y", (task: Task) => Gantt.getBarYCoordinate(task.index, taskConfigHeight)
-                    + Gantt.getResourceLabelYOffset(taskConfigHeight, taskResourceFontSize, taskResourcePosition)
-                    + (task.index + 1) * this.getResourceLabelTopMargin())
+                .attr("y", (task: Task) => {
+                    const groupIndex = task.groupIndex;
+                    const lane = task.lane || 0;
+                    return this.getGroupCumulativeY(groupedTasks, groupIndex)
+                        + Gantt.getResourceLabelYOffset(taskConfigHeight, taskResourceFontSize, taskResourcePosition)
+                        + lane * (Gantt.getBarHeight(taskConfigHeight) + 2);
+                })
                 .text((task: Task) => lodashIsEmpty(task.Milestones) && task.resource || "")
                 .style("fill", taskResourceColor)
                 .style("font-size", PixelConverter.fromPoint(taskResourceFontSize))
@@ -2831,6 +2892,10 @@ export class Gantt implements IVisual {
                 .selectAll(Gantt.TaskResource.selectorName)
                 .remove();
         }
+    }
+
+    private static getMaxLane(tasks: Task[]): number {
+        return Math.max(0, ...tasks.map(t => t.lane || 0));
     }
 
     private static getSameRowNextTaskStartDate(task: Task, index: number, selection: Selection<Task>) {
@@ -2891,13 +2956,8 @@ export class Gantt implements IVisual {
      * Returns the matching Y coordinate for a given task index
      * @param taskIndex Task Number
      */
-    private getTaskLabelCoordinateY(taskIndex: number): number {
-        const settings = this.viewModel.settings;
-        const fontSize: number = + settings.taskLabelsCardSettings.fontSize.value;
-        const taskConfigHeight = settings.taskConfigCardSettings.height.value || DefaultChartLineHeight;
-        const taskYCoordinate = taskConfigHeight * taskIndex;
-        const barHeight = Gantt.getBarHeight(taskConfigHeight);
-        return taskYCoordinate + (barHeight + Gantt.BarHeightMargin - (taskConfigHeight - fontSize) / Gantt.ChartLineHeightDivider);
+    private getTaskLabelCoordinateY(taskIndex: number, groupedTasks: GroupedTask[]): number {
+        return this.getGroupCumulativeY(groupedTasks, taskIndex);
     }
 
     /**
@@ -2932,9 +2992,7 @@ export class Gantt implements IVisual {
     * @param lineNumber Line number that represents the task number
     * @param lineHeight Height of task line
     */
-    private static getBarYCoordinate(
-        lineNumber: number,
-        lineHeight: number): number {
+    private static getBarYCoordinate(lineNumber: number, lineHeight: number): number {
         return (lineHeight * lineNumber) + PaddingTasks;
     }
 

@@ -59,12 +59,16 @@ export interface Task extends SelectableDataPoint {
     stepDurationTransformation?: number;
     highlight?: boolean;
     Milestones?: Milestone[];
+    lane: number;
+    groupIndex: number;
 }
 
 export interface GroupedTask {
     index: number;
     name: string;
     tasks: Task[];
+    rowHeight: number;
+    maxLane: number;
 }
 
 export interface GanttChartFormatters {
