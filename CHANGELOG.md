@@ -1,6 +1,10 @@
+## 4.0.1.0
+
+- Added support for dynamic tasklanes and groups without the use of parents
+
 ## 4.0.0.0
 
-Added weeknumbers in axis (Monthly)
+- Added weeknumbers in axis (Monthly)
 
 ## 3.0.11
 
