@@ -2070,14 +2070,11 @@ export class Gantt implements IVisual {
         const categoriesAreaBackgroundColor: string = this.colorHelper.getThemeColor();
         const isHighContrast: boolean = this.colorHelper.isHighContrast;
 
-        // Flatten out lanes for rendering labels/gridlines
-        const labelRows = tasks.flatMap((group, groupIndex) =>
-            Array.from({ length: group.maxLane + 1 }, (_, lane) => ({
-                group,
-                groupIndex,
-                lane
-            }))
-        );
+        // Only one label/gridline per group
+        const labelRows = tasks.map((group, groupIndex) => ({
+            group,
+            groupIndex
+        }));
 
         this.updateCollapseAllGroup(categoriesAreaBackgroundColor, taskLabelsShow);
 
@@ -2106,12 +2103,11 @@ export class Gantt implements IVisual {
                     SVGManipulations.translate(
                         0,
                         this.margin.top +
-                        this.getGroupCumulativeY(tasks, d.groupIndex) +
-                        d.lane * (Gantt.getBarHeight(taskConfigHeight) + 2)
+                        this.getGroupCumulativeY(tasks, d.groupIndex)
                     )
                 );
 
-            // Main label text (only on first lane)
+            // Main label text
             axisLabelGroup
                 .append("text")
                 .attr("x", Gantt.TaskLineCoordinateX)
@@ -2119,12 +2115,12 @@ export class Gantt implements IVisual {
                 .attr("fill", taskLabelsColor)
                 .attr("stroke-width", Gantt.AxisLabelStrokeWidth)
                 .style("font-size", PixelConverter.fromPoint(taskLabelsFontSize))
-                .text((d) => d.lane === 0 ? d.group.name : "")
+                .text((d) => d.group.name)
                 .call(AxisHelper.LabelLayoutStrategy.clip, width - Gantt.AxisLabelClip, textMeasurementService.svgEllipsis)
                 .append("title")
-                .text((d) => d.lane === 0 ? d.group.name : "");
+                .text((d) => d.group.name);
 
-            // Grid line for each lane
+            // Grid line for each group
             axisLabelGroup
                 .append("rect")
                 .attr("y", 0)
