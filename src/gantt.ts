@@ -328,6 +328,7 @@ export class Gantt implements IVisual {
     private collapseAllGroup: Selection<any>;
     private axisGroup: Selection<any>;
     private chartGroup: Selection<any>;
+    private gridGroup: Selection<any>;
     private taskGroup: Selection<any>;
     private lineGroup: Selection<any>;
     private lineGroupWrapper: Selection<any>;
@@ -390,6 +391,11 @@ export class Gantt implements IVisual {
         this.chartGroup = this.ganttSvg
             .append("g")
             .classed(Gantt.Chart.className, true);
+
+        // create grid container
+        this.gridGroup = this.chartGroup
+            .append("g")
+            .classed("grid-group", true);
 
         // create tasks container
         this.taskGroup = this.chartGroup
@@ -2031,6 +2037,34 @@ export class Gantt implements IVisual {
         this.axisGroup
             .selectAll(".tick text")
             .style("fill", (timestamp: number) => this.setTickColor(timestamp, axisTextColor));
+
+        // --- Add vertical grid lines ---
+        // Remove old grid lines first
+        this.gridGroup.selectAll(".vertical-grid-line").remove();
+
+        // Get tick positions
+        const tickNodes = this.axisGroup.selectAll(".tick").nodes();
+        const chartHeight = parseFloat(this.ganttSvg.attr("height") || "0");
+
+        tickNodes.forEach((tick: SVGGElement) => {
+            const transform = tick.getAttribute("transform");
+            if (transform) {
+                // Extract the x position from the transform string
+                const match = /translate\(([\d.]+),/.exec(transform);
+                if (match) {
+                    const x = parseFloat(match[1]);
+                    this.gridGroup.append("line")
+                        .attr("class", "vertical-grid-line")
+                        .attr("x1", x)
+                        .attr("y1", 0)
+                        .attr("x2", x)
+                        .attr("y2", chartHeight)
+                        .attr("stroke", "#e0e0e0")
+                        .attr("stroke-width", 1)
+                        .attr("shape-rendering", "crispEdges");
+                }
+            }
+        });
     }
 
     private setTickColor(
@@ -3085,8 +3119,6 @@ export class Gantt implements IVisual {
             return;
         }
 
-        const todayColor: string = this.viewModel.settings.dateTypeCardSettings.todayColor.value.value;
-        // TODO: add not today milestones color
         const milestoneDates = [new Date(timestamp)];
         tasks.forEach((task: GroupedTask) => {
             const subtasks: Task[] = task.tasks;
@@ -3125,17 +3157,23 @@ export class Gantt implements IVisual {
             .append("line")
             .merge(chartLineSelection);
 
-        chartLineSelectionMerged.classed(Gantt.ChartLine.className, true);
+        chartLineSelectionMerged
+            .classed(Gantt.ChartLine.className, true)
+            .classed("today-line", (line: Line) => {
+                // Mark the line for today (timestamp)
+                return line.x1 === Gantt.TimeScale(timestamp);
+            });
 
         chartLineSelectionMerged
             .attr("x1", (line: Line) => line.x1)
             .attr("y1", (line: Line) => line.y1)
             .attr("x2", (line: Line) => line.x2)
             .attr("y2", (line: Line) => line.y2)
-            .style("stroke", (line: Line) => {
-                const color: string = line.x1 === Gantt.TimeScale(timestamp) ? todayColor : Gantt.DefaultValues.MilestoneLineColor;
-                return this.colorHelper.getHighContrastColor("foreground", color);
-            });
+            .style("stroke", (line: Line) =>
+                line.x1 === Gantt.TimeScale(timestamp)
+                    ? null // Let CSS handle today-line
+                    : this.colorHelper.getHighContrastColor("foreground", Gantt.DefaultValues.MilestoneLineColor)
+            );
 
         this.renderTooltip(chartLineSelectionMerged);
 

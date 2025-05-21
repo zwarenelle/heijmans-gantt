@@ -1,3 +1,8 @@
+## 4.0.1.2
+
+- Updated en-US translations
+- Visual improvements
+
 ## 4.0.1.1
 
 - Added top padding for tasks
