@@ -1790,9 +1790,9 @@ export class Gantt implements IVisual {
         scrollbarVisible: boolean): IAxisProperties {
 
         // Adjust startDate to the nearest Monday
-        const dayOfWeek = startDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-        const daysToMonday = (dayOfWeek === 0) ? 1 : (8 - dayOfWeek); // Calculate days to next Monday
-        startDate = new Date(startDate.getTime() + daysToMonday * MillisecondsInADay);
+        const dayOfWeek = startDate.getDay();
+        const daysFromMonday = (dayOfWeek + 6) % 7;
+        startDate = new Date(startDate.getTime() - (daysFromMonday + 7) * MillisecondsInADay); // one week earlier
 
         // Generate ticks for every Monday
         const ticks: Date[] = [];
