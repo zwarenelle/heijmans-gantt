@@ -213,6 +213,7 @@ export class Gantt implements IVisual {
     private colors: IColorPalette;
     private colorHelper: ColorHelper;
     private legend: ILegend;
+    private dailyTicks: Date[] = [];
 
     private textProperties: TextProperties = {
         fontFamily: "wf_segoe-ui_normal",
@@ -1802,6 +1803,13 @@ export class Gantt implements IVisual {
             currentTick.setDate(currentTick.getDate() + 7); // Move to the next Monday
         }
 
+        this.dailyTicks = [];
+        const currentDay = new Date(startDate);
+        while (currentDay <= endDate) {
+            this.dailyTicks.push(new Date(currentDay));
+            currentDay.setDate(currentDay.getDate() + 1);
+        }
+
         const dataTypeDatetime: ValueType = ValueType.fromPrimitiveTypeAndCategory(PrimitiveType.Date);
         const category: DataViewMetadataColumn = {
             displayName: this.localizationManager.getDisplayName("Role_StartDate"),
@@ -1891,7 +1899,7 @@ export class Gantt implements IVisual {
         const dateType: DateType = DateType[this.viewModel.settings.dateTypeCardSettings.type.value.value];
         const cultureSelector: string = this.host.locale;
         const customDateFormatter = (date: Date): string => {
-            if (dateType === DateType.Week) {
+            if (dateType === DateType.Week || dateType === DateType.Day) {
                 const weekNumber = moment(date).isoWeek(); // Get ISO week number
                 return `${moment(date).format("DD MMM")} (Wk ${weekNumber})`;
             }
@@ -2064,6 +2072,19 @@ export class Gantt implements IVisual {
                         .attr("shape-rendering", "crispEdges");
                 }
             }
+        });
+
+        this.dailyTicks.forEach((date: Date) => {
+            const x = Gantt.TimeScale(date);
+            this.gridGroup.append("line")
+                .attr("class", "vertical-grid-line daily-grid-line")
+                .attr("x1", x)
+                .attr("y1", 0)
+                .attr("x2", x)
+                .attr("y2", chartHeight)
+                .attr("stroke", "#e0e0e0")
+                .attr("stroke-width", 0.5)
+                .attr("shape-rendering", "crispEdges");
         });
     }
 
