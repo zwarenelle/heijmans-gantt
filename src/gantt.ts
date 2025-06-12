@@ -422,7 +422,8 @@ export class Gantt implements IVisual {
         this.lineGroupWrapper = this.lineGroup
             .append("rect")
             .classed(Gantt.TaskLinesRect.className, true)
-            .attr("height", "100%")
+            // FIX: Use pixel value for height instead of "100%" to ensure gridlines render in Power BI Service
+            .attr("height", this.viewport ? this.viewport.height : 500)
             .attr("width", "0")
             .attr("fill", axisBackgroundColor)
             .attr("y", this.margin.top);
@@ -1711,7 +1712,11 @@ export class Gantt implements IVisual {
 
         axisLength = this.scaleAxisLength(axisLength);
 
+        // Always set SVG and grid wrapper height before drawing gridlines
         this.setDimension(groupedTasks, axisLength, settings);
+
+        // Now render axis/gridlines (SVG height is guaranteed)
+        this.renderAxis(this.xAxisProperties);
 
         this.renderTasks(groupedTasks);
         this.updateTaskLabels(groupedTasks, settings.taskLabelsCardSettings.width.value);
@@ -1948,17 +1953,21 @@ export class Gantt implements IVisual {
             widthBeforeConversion += Gantt.DefaultValues.ResourceWidth / 2;
         }
 
-        const height = PixelConverter.toString(
+        const height = Math.round(
             Gantt.TaskBarTopPadding +
             groupedTasks.reduce((sum, g) => sum + g.rowHeight, 0) +
             this.margin.top +
             fullResourceLabelMargin
         );
-        const width = PixelConverter.toString(widthBeforeConversion);
+        const width = Math.round(widthBeforeConversion);
 
         this.ganttSvg
             .attr("height", height)
             .attr("width", width);
+        // Ensure the grid background/wrapper matches SVG height for gridlines
+        if (this.lineGroupWrapper) {
+            this.lineGroupWrapper.attr("height", height);
+        }
     }
 
     private static getGroupTasks(tasks: Task[], groupTasks: boolean, collapsedTasks: string[]): GroupedTask[] {
@@ -2053,12 +2062,14 @@ export class Gantt implements IVisual {
         // Get tick positions
         const tickNodes = this.axisGroup.selectAll(".tick").nodes();
         const chartHeight = parseFloat(this.ganttSvg.attr("height") || "0");
+        // Fallback: if chartHeight is 0, use viewport height as a backup
+        const gridLineHeight = chartHeight > 0 ? chartHeight : (this.viewport ? this.viewport.height : 500);
 
         tickNodes.forEach((tick: SVGGElement) => {
             const transform = tick.getAttribute("transform");
             if (transform) {
                 // Extract the x position from the transform string
-                const match = /translate\(([\d.]+),/.exec(transform);
+                const match = /translate\(([^,]+),/.exec(transform);
                 if (match) {
                     const x = parseFloat(match[1]);
                     this.gridGroup.append("line")
@@ -2066,7 +2077,7 @@ export class Gantt implements IVisual {
                         .attr("x1", x)
                         .attr("y1", 0)
                         .attr("x2", x)
-                        .attr("y2", chartHeight)
+                        .attr("y2", gridLineHeight)
                         .attr("stroke", "#e0e0e0")
                         .attr("stroke-width", 1)
                         .attr("shape-rendering", "crispEdges");
