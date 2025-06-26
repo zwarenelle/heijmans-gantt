@@ -1715,6 +1715,33 @@ export class Gantt implements IVisual {
         // Always set SVG and grid wrapper height before drawing gridlines
         this.setDimension(groupedTasks, axisLength, settings);
 
+        // --- Render weekend backgrounds ---
+        if (this.gridGroup && this.dailyTicks && Gantt.TimeScale) {
+            // Remove old weekend backgrounds
+            this.gridGroup.selectAll('.weekend-background').remove();
+            const chartHeight = parseFloat(this.ganttSvg.attr('height') || '0');
+            const gridLineHeight = chartHeight > 0 ? chartHeight : (this.viewport ? this.viewport.height : 500);
+            // Assume Sunday (0) and Saturday (6) as weekends
+            this.dailyTicks.forEach((date) => {
+                if (date.getDay() === 0 || date.getDay() === 6) {
+                    const x = Gantt.TimeScale(date);
+                    // Calculate width: distance to next day or fallback to tick width
+                    const nextDay = new Date(date);
+                    nextDay.setDate(date.getDate() + 1);
+                    const x2 = Gantt.TimeScale(nextDay);
+                    const width = (x2 && !isNaN(x2)) ? (x2 - x) : Gantt.DefaultTicksLength;
+                    // Draw rect
+                    this.gridGroup.append('rect')
+                        .attr('class', 'weekend-background')
+                        .attr('x', x)
+                        .attr('y', 0)
+                        .attr('width', width)
+                        .attr('height', gridLineHeight)
+                        .lower(); // Ensure it's behind grid lines
+                }
+            });
+        }
+
         // Now render axis/gridlines (SVG height is guaranteed)
         this.renderAxis(this.xAxisProperties);
 
