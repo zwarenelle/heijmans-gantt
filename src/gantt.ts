@@ -1,5 +1,6 @@
 import "./../style/gantt.less";
 import * as moment from 'moment';
+import * as momentzone from 'moment-timezone';
 import 'moment/locale/nl';
 moment.locale('nl');
 
@@ -2506,9 +2507,11 @@ export class Gantt implements IVisual {
     private getTaskRectWidth(task: Task): number {
         const taskIsCollapsed = this.collapsedTasks.includes(task.name);
 
-        return this.hasNotNullableDates && (taskIsCollapsed || lodashIsEmpty(task.Milestones))
-            ? Gantt.taskDurationToWidth(task.start, task.end)
-            : 0;
+        if (this.hasNotNullableDates && (taskIsCollapsed || lodashIsEmpty(task.Milestones))) {
+            const { start, end } = Gantt.normalizeTaskDates(task);
+            return Gantt.taskDurationToWidth(start, end);
+        }
+        return 0;
     }
 
     /**
@@ -2518,11 +2521,14 @@ export class Gantt implements IVisual {
      * @param barsRoundedCorners are bars with rounded corners
      */
     private drawTaskRect(task: Task, taskConfigHeight: number, barsRoundedCorners: boolean, groupIndex: number, groupedTasks: GroupedTask[]): string {
-        const x = this.hasNotNullableDates ? Gantt.TimeScale(task.start) : 0;
+        const { start, end } = Gantt.normalizeTaskDates(task);
+        console.log('Amsterdam start:', start.toISOString(), 'end:', end.toISOString());
+        console.log('Browser local start:', start, 'end:', end);
+        const x = this.hasNotNullableDates ? Gantt.TimeScale(start) : 0;
         const lane = task.lane || 0;
         const y = Gantt.TaskBarTopPadding + this.getGroupCumulativeY(groupedTasks, groupIndex)
             + lane * (Gantt.getBarHeight(taskConfigHeight) + 2);
-        const width = this.getTaskRectWidth(task);
+        const width = Gantt.taskDurationToWidth(start, end);
         const height = Gantt.getBarHeight(taskConfigHeight);
         const radius = Gantt.RectRound;
 
@@ -3032,6 +3038,23 @@ export class Gantt implements IVisual {
             });
 
         return sameRowNextTaskStart;
+    }
+
+    // private static normalizeTaskDates(task: Task): { start: Date, end: Date } {
+    //     const start = new Date(task.start);
+    //     start.setUTCHours(0, 0, 0, 0);
+
+    //     const end = new Date(task.end);
+    //     end.setUTCHours(23, 59, 59, 999);
+
+    //     return { start, end };
+    // }
+
+    private static normalizeTaskDates(task: Task): { start: Date, end: Date } {
+        // Use Europe/Amsterdam for Dutch time
+        const start = momentzone.tz(task.start, "Europe/Amsterdam").startOf('day').add(5, 'h').toDate();
+        const end = momentzone.tz(task.end, "Europe/Amsterdam").endOf('day').add(5, 'h').toDate();
+        return { start, end };
     }
 
     private static getResourceLabelYOffset(
