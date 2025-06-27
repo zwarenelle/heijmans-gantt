@@ -1744,6 +1744,7 @@ export class Gantt implements IVisual {
 
         // Now render axis/gridlines (SVG height is guaranteed)
         this.renderAxis(this.xAxisProperties);
+        this.renderDayLabels();
 
         this.renderTasks(groupedTasks);
         this.updateTaskLabels(groupedTasks, settings.taskLabelsCardSettings.width.value);
@@ -2809,6 +2810,30 @@ export class Gantt implements IVisual {
                 .exit()
                 .remove();
         }
+    }
+
+    private renderDayLabels(): void {
+        if (!this.dailyTicks || !Gantt.TimeScale) return;
+
+        // Remove old day labels
+        this.axisGroup.selectAll(".day-label").remove();
+
+        // Calculate Y position: below axis labels, above first row of tasks
+        const weekAxisHeight = 24; // adjust as needed for your axis font size
+        const dayLabelYOffset = weekAxisHeight + 8; // ..px below week label
+
+        // Render each day label
+        this.axisGroup.selectAll(".day-label")
+            .data(this.dailyTicks)
+            .enter()
+            .append("text")
+            .attr("class", "day-label")
+            .attr("x", (d: Date) => Gantt.TimeScale(d) + Gantt.DefaultTicksLength / 2)
+            .attr("y", dayLabelYOffset)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "10px")
+            .attr("fill", "#888")
+            .text((d: Date) => d.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2));
     }
 
     /**
