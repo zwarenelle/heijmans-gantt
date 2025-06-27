@@ -2162,8 +2162,6 @@ export class Gantt implements IVisual {
         let axisLabel: Selection<any>;
         const taskLabelsShow: boolean = this.viewModel.settings.taskLabelsCardSettings.show.value;
         const displayGridLines: boolean = this.viewModel.settings.generalCardSettings.displayGridLines.value;
-        const taskLabelsColor: string = this.viewModel.settings.taskLabelsCardSettings.fill.value.value;
-        const taskLabelsFontSize: number = this.viewModel.settings.taskLabelsCardSettings.fontSize.value;
         const taskLabelsWidth: number = this.viewModel.settings.taskLabelsCardSettings.width.value;
         const taskConfigHeight: number = this.viewModel.settings.taskConfigCardSettings.height.value || DefaultChartLineHeight;
         const categoriesAreaBackgroundColor: string = this.colorHelper.getThemeColor();
@@ -2211,9 +2209,8 @@ export class Gantt implements IVisual {
                 .append("text")
                 .attr("x", Gantt.TaskLineCoordinateX)
                 .attr("y", taskConfigHeight / 2)
-                .attr("fill", taskLabelsColor)
                 .attr("stroke-width", Gantt.AxisLabelStrokeWidth)
-                .style("font-size", PixelConverter.fromPoint(taskLabelsFontSize))
+                .attr("class", "task-labels")
                 .text((d) => d.group.name)
                 .call(AxisHelper.LabelLayoutStrategy.clip, width - Gantt.AxisLabelClip, textMeasurementService.svgEllipsis)
                 .append("title")

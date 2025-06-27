@@ -31,16 +31,17 @@
 
         .tasks {
             .task {
-                background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 100%);
-                border-radius: 4px;
-                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-                opacity: 0;
-                animation: fadeInTask 0.6s forwards;
-                transition: box-shadow 0.2s, background 0.2s;
+                background: linear-gradient(90deg, #e3f2fd 0%, #90caf9 100%);
+                border-radius: 6px;
+                box-shadow: 0 2px 8px rgba(25, 118, 210, 0.10);
+                border: 1px solid #bbdefb;
+                opacity: 1; // Remove animation/fade
+                transition: box-shadow 0.2s, background 0.2s, border 0.2s;
 
                 &:hover {
-                    background: #90caf9;
-                    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
+                    background: linear-gradient(90deg, #90caf9 0%, #1976d2 100%);
+                    box-shadow: 0 4px 16px rgba(25, 118, 210, 0.18);
+                    border: 1.5px solid #1976d2;
                     cursor: pointer;
                 }
 
@@ -72,9 +73,10 @@
         }
 
         .task-labels {
-            width: 130px;
-            font-size: 13px;
-            padding-left: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            fill: #222;
+            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         .task-lines {
@@ -95,24 +97,11 @@
     }
 }
 
-@keyframes fadeInTask {
-    to {
-        opacity: 1;
-    }
-}
-
-.vertical-grid-line {
+.vertical-grid-line,
+.daily-grid-line {
     stroke: #e0e0e0;
     opacity: 0.5;
     stroke-width: 1.5;
-    shape-rendering: crispEdges;
-    pointer-events: none;
-}
-
-.daily-grid-line {
-    stroke: #e0e0e0;
-    opacity: 0.33;
-    stroke-width: 1;
     shape-rendering: crispEdges;
     pointer-events: none;
 }
