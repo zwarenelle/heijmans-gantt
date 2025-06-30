@@ -183,6 +183,10 @@ export class SortingOptions {
 
 
 export class Gantt implements IVisual {
+    // Track user scroll and last scroll position
+    private hasUserScrolled: boolean = false;
+    private lastScrollLeft: number = 0;
+    private lastScrollTop: number = 0;
     private static ClassName: ClassAndSelector = createClassAndSelector("gantt");
     private static Chart: ClassAndSelector = createClassAndSelector("chart");
     private static ChartLine: ClassAndSelector = createClassAndSelector("chart-line");
@@ -453,12 +457,20 @@ export class Gantt implements IVisual {
 
         this.ganttDiv.on("scroll", (event) => {
             if (this.viewModel) {
+                // Mark that user has scrolled
+                if (!this.hasUserScrolled) {
+                    this.hasUserScrolled = true;
+                }
+                // Store last scroll positions
+                this.lastScrollTop = <number>event.target.scrollTop;
+                this.lastScrollLeft = <number>event.target.scrollLeft;
+
                 const taskLabelsWidth: number = this.viewModel.settings.taskLabelsCardSettings.show.value
                     ? this.viewModel.settings.taskLabelsCardSettings.width.value
                     : 0;
 
-                const scrollTop: number = <number>event.target.scrollTop;
-                const scrollLeft: number = <number>event.target.scrollLeft;
+                const scrollTop: number = this.lastScrollTop;
+                const scrollLeft: number = this.lastScrollLeft;
 
                 this.axisGroup
                     .attr("transform", SVGManipulations.translate(taskLabelsWidth + this.margin.left + Gantt.SubtasksLeftMargin, Gantt.TaskLabelsMarginTop + scrollTop));
@@ -1599,6 +1611,48 @@ export class Gantt implements IVisual {
         }
 
         this.updateInternal(options);
+
+        // After rendering the chart, handle scroll position
+        setTimeout(() => {
+            if (!this.ganttDiv || !this.ganttDiv.node) return;
+            const ganttDivNode = this.ganttDiv.node();
+            if (!ganttDivNode) return;
+
+            if (!this.hasUserScrolled) {
+                // Scroll to today on first load
+                const scrollLeftToday = this.calculateScrollLeftForToday();
+                ganttDivNode.scrollLeft = scrollLeftToday;
+                this.lastScrollLeft = scrollLeftToday;
+                this.lastScrollTop = 0;
+            } else {
+                // Restore last scroll position
+                ganttDivNode.scrollLeft = this.lastScrollLeft;
+                ganttDivNode.scrollTop = this.lastScrollTop;
+            }
+        }, 0);
+    }
+
+    /**
+     * Calculate the scrollLeft value needed to bring today into view
+     * Returns a pixel value for the scrollLeft property
+     */
+    private calculateScrollLeftForToday(): number {
+        // If no axis or scale, fallback to 0
+        if (!this.xAxisProperties || !this.xAxisProperties.scale) return 0;
+        // Find the x position of today
+        const today = new Date();
+        // The scale may be d3.scaleTime or similar
+        let x = 0;
+        try {
+            x = this.xAxisProperties.scale(today);
+        } catch {
+            x = 0;
+        }
+        // Optionally, center today in the viewport
+        if (this.viewport && this.viewport.width) {
+            x = x - this.viewport.width / 2;
+        }
+        return Math.max(0, x);
     }
 
     private updateInternal(options: VisualUpdateOptions): void {
