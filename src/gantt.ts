@@ -2519,8 +2519,6 @@ export class Gantt implements IVisual {
      */
     private drawTaskRect(task: Task, taskConfigHeight: number, barsRoundedCorners: boolean, groupIndex: number, groupedTasks: GroupedTask[]): string {
         const { start, end } = Gantt.normalizeTaskDates(task);
-        console.log('Amsterdam start:', start.toISOString(), 'end:', end.toISOString());
-        console.log('Browser local start:', start, 'end:', end);
         const x = this.hasNotNullableDates ? Gantt.TimeScale(start) : 0;
         const lane = task.lane || 0;
         const y = Gantt.TaskBarTopPadding + this.getGroupCumulativeY(groupedTasks, groupIndex)
@@ -2831,7 +2829,7 @@ export class Gantt implements IVisual {
         const allTasks = this.viewModel.tasks || [];
         const allResourcesSet = new Set<string>();
         allTasks.forEach(task => {
-            if (task.resource) allResourcesSet.add(task.resource);
+            if (task.name) allResourcesSet.add(task.name);
         });
         const totalResources = allResourcesSet.size;
 
@@ -2839,11 +2837,11 @@ export class Gantt implements IVisual {
         const capacityData = this.dailyTicks.map((date) => {
             const occupiedResources = new Set<string>();
             allTasks.forEach(task => {
-                if (!task.resource) return;
+                if (!task.name) return;
                 // Check if task is active on this day
                 const { start, end } = Gantt.normalizeTaskDates(task);
                 if (date >= start && date <= end) {
-                    occupiedResources.add(task.resource);
+                    occupiedResources.add(task.name);
                 }
             });
             return {
