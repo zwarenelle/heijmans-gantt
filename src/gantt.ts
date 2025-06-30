@@ -310,7 +310,7 @@ export class Gantt implements IVisual {
 
     private static get DefaultMargin(): IMargin {
         return {
-            top: 50,
+            top: 68, // Grid margin from the top
             right: 40,
             bottom: 40,
             left: 10
@@ -2818,14 +2818,55 @@ export class Gantt implements IVisual {
     private renderDayLabels(): void {
         if (!this.dailyTicks || !Gantt.TimeScale) return;
 
-        // Remove old day labels
+        // Remove old day labels and capacity labels
         this.axisGroup.selectAll(".day-label").remove();
+        this.axisGroup.selectAll(".capacity-label").remove();
 
-        // Calculate Y position: below axis labels, above first row of tasks
-        const weekAxisHeight = 24; // adjust as needed for your axis font size
-        const dayLabelYOffset = weekAxisHeight + 8; // ..px below week label
+        // Calculate Y positions (margins) task labels
+        const weekAxisHeight = 24;
+        const capacityLabelYOffset = weekAxisHeight + 12; // above day label
+        const dayLabelYOffset = weekAxisHeight + 24;
 
-        // Render each day label
+        // Gather all unique resources
+        const allTasks = this.viewModel.tasks || [];
+        const allResourcesSet = new Set<string>();
+        allTasks.forEach(task => {
+            if (task.resource) allResourcesSet.add(task.resource);
+        });
+        const totalResources = allResourcesSet.size;
+
+        // For each day, calculate occupied resources
+        const capacityData = this.dailyTicks.map((date) => {
+            const occupiedResources = new Set<string>();
+            allTasks.forEach(task => {
+                if (!task.resource) return;
+                // Check if task is active on this day
+                const { start, end } = Gantt.normalizeTaskDates(task);
+                if (date >= start && date <= end) {
+                    occupiedResources.add(task.resource);
+                }
+            });
+            return {
+                date,
+                occupied: occupiedResources.size,
+                total: totalResources
+            };
+        });
+
+        // Render capacity labels
+        this.axisGroup.selectAll(".capacity-label")
+            .data(capacityData)
+            .enter()
+            .append("text")
+            .attr("class", "capacity-label")
+            .attr("x", (d) => Gantt.TimeScale(d.date) + Gantt.DefaultTicksLength / 2)
+            .attr("y", capacityLabelYOffset)
+            .attr("text-anchor", "middle")
+            .attr("font-size", "10px")
+            .attr("fill", "#444")
+            .text((d) => `${d.occupied} / ${d.total}`);
+
+        // Render each day label as before
         this.axisGroup.selectAll(".day-label")
             .data(this.dailyTicks)
             .enter()
