@@ -3130,16 +3130,6 @@ export class Gantt implements IVisual {
         return sameRowNextTaskStart;
     }
 
-    // private static normalizeTaskDates(task: Task): { start: Date, end: Date } {
-    //     const start = new Date(task.start);
-    //     start.setUTCHours(0, 0, 0, 0);
-
-    //     const end = new Date(task.end);
-    //     end.setUTCHours(23, 59, 59, 999);
-
-    //     return { start, end };
-    // }
-
     private static normalizeTaskDates(task: Task): { start: Date, end: Date } {
         // Use Europe/Amsterdam for Dutch time
         const start = momentzone.tz(task.start, "Europe/Amsterdam").startOf('day').add(5, 'h').toDate();
