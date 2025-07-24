@@ -477,6 +477,12 @@ export class Gantt implements IVisual {
                 this.lineGroup
                     .attr("transform", SVGManipulations.translate(scrollLeft, 0))
                     .attr("height", 20);
+
+                this.taskResourceRender(
+                    this.taskGroup.selectAll(Gantt.SingleTask.selectorName),
+                    this.viewModel.settings.taskConfigCardSettings.height.value || DefaultChartLineHeight,
+                    this.currentGroupedTasks
+                );
             }
         }, false);
     }
@@ -3107,6 +3113,11 @@ export class Gantt implements IVisual {
                 .selectAll(Gantt.TaskResource.selectorName)
                 .remove();
         }
+
+        this.renderStickyResourceLabelsInBars(
+            groupedTasks, taskConfigHeight, taskResourceFontSize,
+            taskResourceColor, taskResourcePosition, this.lastScrollLeft
+        );
     }
 
     private static getMaxLane(tasks: Task[]): number {
@@ -3128,6 +3139,65 @@ export class Gantt implements IVisual {
             });
 
         return sameRowNextTaskStart;
+    }
+
+    private getBarXEndCoordinate(
+        task: Task
+    ): number {
+        // Calculate the bar's start X using the time scale
+        const { start, end } = Gantt.normalizeTaskDates(task);
+        const barX = Gantt.TimeScale(start);
+        const barWidth = Gantt.taskDurationToWidth(start, end);
+        return barX + barWidth;
+    }
+
+    private renderStickyResourceLabelsInBars(
+        groupedTasks: GroupedTask[],
+        taskConfigHeight: number,
+        taskResourceFontSize: number,
+        taskResourceColor: string,
+        taskResourcePosition: ResourceLabelPosition,
+        scrollLeft: number
+    ): void {
+        const stickyClass = "sticky-resource-label";
+        this.taskGroup.selectAll(`.${stickyClass}`).remove();
+
+        groupedTasks.forEach(group => {
+            group.tasks.forEach(task => {
+                const labelX = this.getResourceLabelXCoordinate(task, taskConfigHeight, taskResourceFontSize, taskResourcePosition);
+                const barEndX = this.getBarXEndCoordinate(task);
+
+                const labelText = lodashIsEmpty(task.Milestones) && task.resource || "";
+                const labelWidth = textMeasurementService.measureSvgTextWidth({
+                    text: labelText,
+                    fontFamily: "Segoe UI", // or your font
+                    fontSize: PixelConverter.fromPoint(taskResourceFontSize)
+                });
+                if ((labelX + labelWidth) < scrollLeft && barEndX > scrollLeft) {
+                    const stickyLabel = this.taskGroup.append("text")
+                        .attr("class", `${Gantt.TaskResource.className} ${stickyClass}`)
+                        .attr("x", scrollLeft + 2)
+                        .attr("y", Gantt.TaskBarTopPadding
+                            + this.getGroupCumulativeY(groupedTasks, task.groupIndex)
+                            + Gantt.getResourceLabelYOffset(taskConfigHeight, taskResourceFontSize, taskResourcePosition)
+                            + (task.lane || 0) * (Gantt.getBarHeight(taskConfigHeight) + 2))
+                        .text(labelText)
+                        .style("fill", taskResourceColor)
+                        .style("font-size", PixelConverter.fromPoint(taskResourceFontSize))
+                        .style("alignment-baseline", taskResourcePosition === ResourceLabelPosition.Inside ? "central" : "auto");
+
+                    // Calculate the visible width (from scrollLeft to barEndX)
+                    const visibleWidth = barEndX - scrollLeft;
+
+                    // Apply clipping to the sticky label
+                    AxisHelper.LabelLayoutStrategy.clip(
+                        stickyLabel,
+                        visibleWidth,
+                        textMeasurementService.svgEllipsis
+                    );
+                }
+            });
+        });
     }
 
     private static normalizeTaskDates(task: Task): { start: Date, end: Date } {
