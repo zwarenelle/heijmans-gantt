@@ -289,8 +289,6 @@ export class Gantt implements IVisual {
     private static AxisLabelStrokeWidth: number = 1;
     private static AxisTopMargin: number = 6;
     private static CollapseAllLeftShift: number = 7.5;
-    private static BarHeightMargin: number = 5;
-    private static ChartLineHeightDivider: number = 4;
     private static ResourceWidthPadding: number = 10;
     private static TaskLabelsMarginTop: number = 15;
     private static CompletionDefault: number = null;
