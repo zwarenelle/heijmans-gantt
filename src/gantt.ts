@@ -3160,21 +3160,24 @@ export class Gantt implements IVisual {
         const stickyClass = "sticky-resource-label";
         this.taskGroup.selectAll(`.${stickyClass}`).remove();
 
+        const visibleLeft = scrollLeft;
+
         groupedTasks.forEach(group => {
             group.tasks.forEach(task => {
-                const labelX = this.getResourceLabelXCoordinate(task, taskConfigHeight, taskResourceFontSize, taskResourcePosition);
                 const barEndX = this.getBarXEndCoordinate(task);
+                const barStartX = Gantt.TimeScale(task.start); // <-- Add this line
 
                 const labelText = lodashIsEmpty(task.Milestones) && task.resource || "";
-                const labelWidth = textMeasurementService.measureSvgTextWidth({
-                    text: labelText,
-                    fontFamily: "Segoe UI", // or your font
-                    fontSize: PixelConverter.fromPoint(taskResourceFontSize)
-                });
-                if ((labelX + labelWidth) < scrollLeft && barEndX > scrollLeft) {
+
+                // Show sticky if the bar's left edge is left of the visible area and the bar is still visible
+                const shouldShowSticky = barStartX < visibleLeft && barEndX > visibleLeft;
+
+                // Hide the original label if sticky is shown
+                if (shouldShowSticky) {
+                    // Add sticky label at the left edge of the visible area
                     const stickyLabel = this.taskGroup.append("text")
                         .attr("class", `${Gantt.TaskResource.className} ${stickyClass}`)
-                        .attr("x", scrollLeft + 2)
+                        .attr("x", visibleLeft + 2)
                         .attr("y", Gantt.TaskBarTopPadding
                             + this.getGroupCumulativeY(groupedTasks, task.groupIndex)
                             + Gantt.getResourceLabelYOffset(taskConfigHeight, taskResourceFontSize, taskResourcePosition)
@@ -3184,15 +3187,23 @@ export class Gantt implements IVisual {
                         .style("font-size", PixelConverter.fromPoint(taskResourceFontSize))
                         .style("alignment-baseline", taskResourcePosition === ResourceLabelPosition.Inside ? "central" : "auto");
 
-                    // Calculate the visible width (from scrollLeft to barEndX)
-                    const visibleWidth = barEndX - scrollLeft;
-
-                    // Apply clipping to the sticky label
+                    // Clip sticky label to visible width
+                    const visibleWidth = barEndX - visibleLeft;
                     AxisHelper.LabelLayoutStrategy.clip(
                         stickyLabel,
                         visibleWidth,
                         textMeasurementService.svgEllipsis
                     );
+
+                    // Hide the original label by setting its opacity to 0
+                    this.taskGroup.selectAll(`.${Gantt.TaskResource.className}`)
+                        .filter(function (d) { return d === task; })
+                        .style("opacity", 0);
+                } else {
+                    // Ensure the original label is visible
+                    this.taskGroup.selectAll(`.${Gantt.TaskResource.className}`)
+                        .filter(function (d) { return d === task; })
+                        .style("opacity", 1);
                 }
             });
         });
