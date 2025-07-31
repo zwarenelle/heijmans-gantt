@@ -144,3 +144,26 @@
     letter-spacing: .22px;
     padding: 2px 8px;
 }
+
+.task-labels-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 200px;
+    /* Adjust as needed */
+    z-index: 10;
+    background: #fafafa;
+    pointer-events: none;
+}
+
+.task-label-row {
+    background: #fafafa;
+    font-size: 12px;
+    border-bottom: 1px solid #e0e0e0;
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
