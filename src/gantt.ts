@@ -1000,7 +1000,7 @@ export class Gantt implements IVisual {
         const milestone: string = (values.Milestones && !lodashIsEmpty(values.Milestones[index]) && values.Milestones[index]) || null;
 
         const startDate: Date = (values.StartDate && values.StartDate[index]
-            && isValidDate(new Date(values.StartDate[index])) && new Date(values.StartDate[index]))
+            && isValidDate(new Date(values.StartDate[index])) && momentzone.tz(values.StartDate[index], "Europe/Amsterdam").startOf('day').toDate())
             || new Date(Date.now());
 
         let highlight: number = null;
@@ -1114,7 +1114,7 @@ export class Gantt implements IVisual {
 
                     endDate = group.EndDate.values[index] ? group.EndDate.values[index] as Date : null;
                     if (typeof (endDate) === "string" || typeof (endDate) === "number") {
-                        endDate = new Date(endDate);
+                        endDate = momentzone.tz(endDate, "Europe/Amsterdam").endOf('day').toDate();
                     }
 
                     completion = ((group.Completion && group.Completion.values[index])
@@ -2563,8 +2563,7 @@ export class Gantt implements IVisual {
         const taskIsCollapsed = this.collapsedTasks.includes(task.name);
 
         if (this.hasNotNullableDates && (taskIsCollapsed || lodashIsEmpty(task.Milestones))) {
-            const { start, end } = Gantt.normalizeTaskDates(task);
-            return Gantt.taskDurationToWidth(start, end);
+            return Gantt.taskDurationToWidth(task.start, task.end);
         }
         return 0;
     }
@@ -2576,7 +2575,8 @@ export class Gantt implements IVisual {
      * @param barsRoundedCorners are bars with rounded corners
      */
     private drawTaskRect(task: Task, taskConfigHeight: number, barsRoundedCorners: boolean, groupIndex: number, groupedTasks: GroupedTask[]): string {
-        const { start, end } = Gantt.normalizeTaskDates(task);
+        const start = task.start;
+        const end = task.end;
         const x = this.hasNotNullableDates ? Gantt.TimeScale(start) : 0;
         const lane = task.lane || 0;
         const y = Gantt.TaskBarTopPadding + this.getGroupCumulativeY(groupedTasks, groupIndex)
@@ -2897,7 +2897,8 @@ export class Gantt implements IVisual {
             allTasks.forEach(task => {
                 if (!task.name) return;
                 // Check if task is active on this day
-                const { start, end } = Gantt.normalizeTaskDates(task);
+                const start = task.start;
+                const end = task.end;
                 if (date >= start && date <= end) {
                     occupiedResources.add(task.name);
                 }
@@ -3143,7 +3144,8 @@ export class Gantt implements IVisual {
         task: Task
     ): number {
         // Calculate the bar's start X using the time scale
-        const { start, end } = Gantt.normalizeTaskDates(task);
+        const start = task.start;
+        const end = task.end;
         const barX = Gantt.TimeScale(start);
         const barWidth = Gantt.taskDurationToWidth(start, end);
         return barX + barWidth;
@@ -3207,13 +3209,6 @@ export class Gantt implements IVisual {
                 }
             });
         });
-    }
-
-    private static normalizeTaskDates(task: Task): { start: Date, end: Date } {
-        // Use Europe/Amsterdam for Dutch time
-        const start = momentzone.tz(task.start, "Europe/Amsterdam").startOf('day').add(5, 'h').toDate();
-        const end = momentzone.tz(task.end, "Europe/Amsterdam").endOf('day').add(5, 'h').toDate();
-        return { start, end };
     }
 
     private static getResourceLabelYOffset(
