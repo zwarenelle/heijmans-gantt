@@ -996,6 +996,7 @@ export class Gantt implements IVisual {
 
         if (extraInformation[1].value.substring(0, 2) == "LS" ||
             extraInformation[1].value.substring(0, 2) == "MS" ||
+            extraInformation[1].value.substring(0, 2) == "ES" ||
             extraInformation[1].value == "HA/OV"
         ) {
             resource = extraInformation[1].value;
