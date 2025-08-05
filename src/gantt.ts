@@ -990,11 +990,22 @@ export class Gantt implements IVisual {
 
     private static createTask(values: GanttColumns<any>, index: number, hasHighlights: boolean, categoricalValues: powerbi.DataViewValueColumns, color: string, completion: number, categoryValue: string | number | Date | boolean, endDate: Date, duration: number, taskType: TaskTypeMetadata, selectionBuilder: powerbi.visuals.ISelectionIdBuilder, wasDowngradeDurationUnit: boolean, stepDurationTransformation: number) {
         const extraInformation: ExtraInformation[] = this.getExtraInformationFromValues(values, index);
+        let resource: string;
 
-        let resource: string = (values.Resource && values.Resource[index] as string) || "";
-        extraInformation.forEach(values => {
-            resource += " - " + values.value;
-        });
+        // Special task names
+
+        if (extraInformation[1].value.substring(0, 2) == "LS" ||
+            extraInformation[1].value.substring(0, 2) == "MS" ||
+            extraInformation[1].value == "HA/OV"
+        ) {
+            resource = extraInformation[1].value;
+        }
+        else { // Regular (full task names)
+            resource = (values.Resource && values.Resource[index] as string) || "";
+            extraInformation.forEach(values => {
+                resource += " - " + values.value;
+            });
+        }
 
         const taskParentName: string = (values.Parent && values.Parent[index] as string) || null;
         const milestone: string = (values.Milestones && !lodashIsEmpty(values.Milestones[index]) && values.Milestones[index]) || null;
