@@ -158,7 +158,7 @@ const MillisecondsInASecond: number = 1000;
 const MillisecondsInAMinute: number = 60 * MillisecondsInASecond;
 const MillisecondsInAHour: number = 60 * MillisecondsInAMinute;
 const MillisecondsInADay: number = 24 * MillisecondsInAHour;
-const MillisecondsInWeek: number = 4 * MillisecondsInADay;
+const MillisecondsInWeek: number = 7 * MillisecondsInADay;
 const MillisecondsInAMonth: number = 30 * MillisecondsInADay;
 const MillisecondsInAYear: number = 365 * MillisecondsInADay;
 const MillisecondsInAQuarter: number = MillisecondsInAYear / 4;
@@ -282,7 +282,7 @@ export class Gantt implements IVisual {
 
     private static DefaultGraphicWidthPercentage: number = 0.78;
     private static ResourceLabelDefaultDivisionCoefficient: number = 1.5;
-    private static DefaultTicksLength: number = 50;
+    private static DefaultTicksLength: number = 35; // length of one tick in pixels (change for more or less amount of selected unit, e.g. days or weeks, in the viewbox by default)
     private static DefaultDuration: number = 250;
     private static TaskLineCoordinateX: number = 15;
     private static AxisLabelClip: number = 40;
@@ -1756,7 +1756,9 @@ export class Gantt implements IVisual {
         let axisLength: number = 0;
         if (this.hasNotNullableDates) {
             const startDate: Date = minDateTask.start;
+            console.log(startDate);
             let endDate: Date = maxDateTask.end;
+            console.log(endDate);
 
             if (startDate.toString() === endDate.toString()) {
                 endDate = new Date(endDate.valueOf() + (24 * 60 * 60 * 1000));
@@ -1764,7 +1766,8 @@ export class Gantt implements IVisual {
 
             const dateTypeMilliseconds: number = Gantt.getDateType(DateType[settings.dateTypeCardSettings.type.value.value]);
             let ticks: number = Math.ceil(Math.round(endDate.valueOf() - startDate.valueOf()) / dateTypeMilliseconds);
-            ticks = ticks < 2 ? 2 : ticks;
+
+            ticks = ticks < 2 ? 2 : ticks; // Safety for too close dates
 
             axisLength = ticks * Gantt.DefaultTicksLength;
             axisLength = this.scaleAxisLength(axisLength);
@@ -1786,32 +1789,7 @@ export class Gantt implements IVisual {
         // Always set SVG and grid wrapper height before drawing gridlines
         this.setDimension(groupedTasks, axisLength, settings);
 
-        // --- Render weekend backgrounds ---
-        if (this.gridGroup && this.dailyTicks && Gantt.TimeScale) {
-            // Remove old weekend backgrounds
-            this.gridGroup.selectAll('.weekend-background').remove();
-            const chartHeight = parseFloat(this.ganttSvg.attr('height') || '0');
-            const gridLineHeight = chartHeight > 0 ? chartHeight : (this.viewport ? this.viewport.height : 500);
-            // Assume Sunday (0) and Saturday (6) as weekends
-            this.dailyTicks.forEach((date) => {
-                if (date.getDay() === 0 || date.getDay() === 6) {
-                    const x = Gantt.TimeScale(date);
-                    // Calculate width: distance to next day or fallback to tick width
-                    const nextDay = new Date(date);
-                    nextDay.setDate(date.getDate() + 1);
-                    const x2 = Gantt.TimeScale(nextDay);
-                    const width = (x2 && !isNaN(x2)) ? (x2 - x) : Gantt.DefaultTicksLength;
-                    // Draw rect
-                    this.gridGroup.append('rect')
-                        .attr('class', 'weekend-background')
-                        .attr('x', x)
-                        .attr('y', 0)
-                        .attr('width', width)
-                        .attr('height', gridLineHeight)
-                        .lower(); // Ensure it's behind grid lines
-                }
-            });
-        }
+        this.renderWeekendBackgrounds();
 
         // Now render axis/gridlines (SVG height is guaranteed)
         this.renderAxis(this.xAxisProperties);
@@ -3462,6 +3440,35 @@ export class Gantt implements IVisual {
 
         // Match the SVG height exactly
         return parseFloat(this.ganttSvg.attr("height") || "0");
+    }
+
+    private renderWeekendBackgrounds(): void {
+        // --- Render weekend backgrounds ---
+        if (this.gridGroup && this.dailyTicks && Gantt.TimeScale) {
+            // Remove old weekend backgrounds
+            this.gridGroup.selectAll('.weekend-background').remove();
+            const chartHeight = parseFloat(this.ganttSvg.attr('height') || '0');
+            const gridLineHeight = chartHeight > 0 ? chartHeight : (this.viewport ? this.viewport.height : 500);
+            // Assume Sunday (0) and Saturday (6) as weekends
+            this.dailyTicks.forEach((date) => {
+                if (date.getDay() === 0 || date.getDay() === 6) {
+                    const x = Gantt.TimeScale(date);
+                    // Calculate width: distance to next day or fallback to tick width
+                    const nextDay = new Date(date);
+                    nextDay.setDate(date.getDate() + 1);
+                    const x2 = Gantt.TimeScale(nextDay);
+                    const width = (x2 && !isNaN(x2)) ? (x2 - x) : Gantt.DefaultTicksLength;
+                    // Draw rect
+                    this.gridGroup.append('rect')
+                        .attr('class', 'weekend-background')
+                        .attr('x', x)
+                        .attr('y', 0)
+                        .attr('width', width)
+                        .attr('height', gridLineHeight)
+                        .lower(); // Ensure it's behind grid lines
+                }
+            });
+        }
     }
 
     private scrollToMilestoneLine(axisLength: number,
