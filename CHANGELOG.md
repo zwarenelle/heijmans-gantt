@@ -1,3 +1,11 @@
+## 5.0.0.0
+
+- Visual changes
+- Improved sticky labels while horizontally scrolling
+- Lock the resource pane
+- Fix the normalizing of datetimes
+- Added 'special'-task(names)
+
 ## 4.0.1.2
 
 - Updated en-US translations
