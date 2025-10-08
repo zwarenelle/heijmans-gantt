@@ -623,6 +623,11 @@
     "sorting": {
         "default": {}
     },
-    "privileges": [],
+    "privileges": [
+        {
+            "name": "ExportContent",
+            "essential": true
+        }
+    ],
     "supportsHighlight": true
 }
