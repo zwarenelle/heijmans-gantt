@@ -354,6 +354,15 @@ export class Gantt implements IVisual {
     private hasNotNullableDates: boolean = false;
 
     private collapsedTasksUpdateIDs: string[] = [];
+    private _printBackup: {
+        ganttDivWidth?: string;
+        ganttDivHeight?: string;
+        svgWidth?: string;
+        svgHeight?: string;
+        // preserve scroll positions when printing
+        ganttScrollLeft?: number;
+        ganttScrollTop?: number;
+    } = {};
 
     constructor(options: VisualConstructorOptions) {
         this.init(options);
@@ -372,6 +381,7 @@ export class Gantt implements IVisual {
         this.eventService = options.host.eventService;
 
         this.createViewport(options.element);
+        this.registerPrintHandlers();
     }
 
     /**
@@ -379,14 +389,115 @@ export class Gantt implements IVisual {
      */
     private createViewport(element: HTMLElement): void {
         const axisBackgroundColor: string = this.colorHelper.getThemeColor();
-        // create div container to the whole viewport area
         this.ganttDiv = this.body.append("div")
             .classed(Gantt.Body.className, true);
 
+        this.createSvgAndGroups(axisBackgroundColor);
+        this.createLegendContainer(element);
+        this.handleScrollEvent();
+    }
+
+    private registerPrintHandlers(): void {
+        if (typeof window === "undefined" || !window.addEventListener) {
+            return;
+        }
+
+        const beforePrint = () => {
+            const ganttNode = this.ganttDiv?.node() as HTMLElement;
+            if (!ganttNode || !this.ganttSvg) return;
+
+            // backup current values (sizes + scroll)
+            this._printBackup.ganttDivWidth = ganttNode.style.width;
+            this._printBackup.ganttDivHeight = ganttNode.style.height;
+            this._printBackup.svgWidth = this.ganttSvg.attr("width");
+            this._printBackup.svgHeight = this.ganttSvg.attr("height");
+            this._printBackup.ganttScrollLeft = ganttNode.scrollLeft;
+            this._printBackup.ganttScrollTop = ganttNode.scrollTop;
+
+            // Expand to full scrollable size so the print pipeline can paint full chart area
+            const fullW = ganttNode.scrollWidth || (this.viewport ? this.viewport.width : 1000);
+            const fullH = ganttNode.scrollHeight || (this.viewport ? this.viewport.height : 800);
+
+            this.ganttDiv.style("width", `${fullW}px`).style("height", `${fullH}px`);
+            this.ganttSvg.attr("width", `${fullW}`).attr("height", `${fullH}`);
+
+            // Calculate transforms so printed output corresponds to the currently visible viewport
+            const savedScrollLeft = this._printBackup.ganttScrollLeft || 0;
+            const savedScrollTop = this._printBackup.ganttScrollTop || 0;
+
+            const taskLabelsWidth: number = this.viewModel && this.viewModel.settings && this.viewModel.settings.taskLabelsCardSettings.show.value
+                ? this.viewModel.settings.taskLabelsCardSettings.width.value
+                : 0;
+
+            // Shift chart left by savedScrollLeft so the printed page's left edge matches the visible viewport
+            const chartTranslateX = taskLabelsWidth + this.margin.left + Gantt.SubtasksLeftMargin - savedScrollLeft;
+            const chartTranslateY = this.margin.top;
+
+            // Axis needs to be placed at the same horizontal position as chart content and vertically adjusted by savedScrollTop
+            const axisTranslateX = chartTranslateX;
+            const axisTranslateY = Gantt.TaskLabelsMarginTop + savedScrollTop;
+
+            try {
+                this.chartGroup && this.chartGroup.attr("transform", SVGManipulations.translate(chartTranslateX, chartTranslateY));
+                this.axisGroup && this.axisGroup.attr("transform", SVGManipulations.translate(axisTranslateX, axisTranslateY));
+                // Reset lineGroup shift because chartGroup itself was shifted
+                this.lineGroup && this.lineGroup.attr("transform", SVGManipulations.translate(0, 0));
+                // collapseAllGroup stays relative to top left of SVG
+                this.collapseAllGroup && this.collapseAllGroup.attr("transform", SVGManipulations.translate(0, this.margin.top / 4 + Gantt.AxisTopMargin));
+            } catch (e) {
+                // ignore transform errors during print preparation
+            }
+        };
+
+        const afterPrint = () => {
+            const ganttNode = this.ganttDiv?.node() as HTMLElement;
+            if (!ganttNode || !this.ganttSvg) return;
+
+            // Restore original sizes (fallback to viewport sizes)
+            this.ganttDiv.style("width", this._printBackup.ganttDivWidth ?? PixelConverter.toString(this.viewport.width))
+                .style("height", this._printBackup.ganttDivHeight ?? PixelConverter.toString(this.viewport.height));
+
+            this.ganttSvg.attr("width", this._printBackup.svgWidth ?? PixelConverter.toString(this.viewport.width))
+                .attr("height", this._printBackup.svgHeight ?? PixelConverter.toString(this.viewport.height));
+
+            // Restore transforms and scroll to previous values so UI doesn't jump
+            const restoreScrollLeft = this._printBackup.ganttScrollLeft ?? 0;
+            const restoreScrollTop = this._printBackup.ganttScrollTop ?? 0;
+
+            // Ensure scroll is restored before we recalc positions
+            try {
+                ganttNode.scrollLeft = restoreScrollLeft;
+                ganttNode.scrollTop = restoreScrollTop;
+            } catch (e) {
+                // ignore
+            }
+
+            // Reposition elements back to runtime state (this reads actual scroll from ganttDiv.node())
+            try {
+                this.updateElementsPositions(this.margin);
+            } catch (e) {
+                // fallback: set transforms conservatively
+                const taskLabelsWidth: number = this.viewModel && this.viewModel.settings && this.viewModel.settings.taskLabelsCardSettings.show.value
+                    ? this.viewModel.settings.taskLabelsCardSettings.width.value
+                    : 0;
+                const translateXValue: number = taskLabelsWidth + this.margin.left + Gantt.SubtasksLeftMargin;
+                this.chartGroup && this.chartGroup.attr("transform", SVGManipulations.translate(translateXValue, this.margin.top));
+                this.axisGroup && this.axisGroup.attr("transform", SVGManipulations.translate(translateXValue, Gantt.TaskLabelsMarginTop + restoreScrollTop));
+                this.lineGroup && this.lineGroup.attr("transform", SVGManipulations.translate(restoreScrollLeft, 0));
+            }
+        };
+
+        window.addEventListener("beforeprint", beforePrint);
+        window.addEventListener("afterprint", afterPrint);
+    }
+
+    private createSvgAndGroups(axisBackgroundColor: string): void {
         // create container to the svg area
         this.ganttSvg = this.ganttDiv
             .append("svg")
-            .classed(Gantt.ClassName.className, true);
+            .classed(Gantt.ClassName.className, true)
+            .attr("shape-rendering", "geometricPrecision")
+            .attr("text-rendering", "geometricPrecision");
 
         // create clear catcher
         this.clearCatcher = appendClearCatcher(this.ganttSvg);
@@ -409,7 +520,9 @@ export class Gantt implements IVisual {
         // create axis container
         this.axisGroup = this.ganttSvg
             .append("g")
-            .classed(Gantt.AxisGroup.className, true);
+            .classed(Gantt.AxisGroup.className, true)
+            .attr("shape-rendering", "geometricPrecision")
+            .attr("text-rendering", "geometricPrecision");
         this.axisGroup
             .append("rect")
             .attr("width", "100%")
@@ -420,16 +533,18 @@ export class Gantt implements IVisual {
         // create task lines container
         this.lineGroup = this.ganttSvg
             .append("g")
-            .classed(Gantt.TaskLines.className, true);
+            .classed(Gantt.TaskLines.className, true)
+            .attr("shape-rendering", "geometricPrecision")
+            .attr("text-rendering", "geometricPrecision");
 
         this.lineGroupWrapper = this.lineGroup
             .append("rect")
             .classed(Gantt.TaskLinesRect.className, true)
-            // FIX: Use pixel value for height instead of "100%" to ensure gridlines render in Power BI Service
             .attr("height", this.viewport ? this.viewport.height : 500)
             .attr("width", "0")
             .attr("fill", axisBackgroundColor)
-            .attr("y", this.margin.top);
+            .attr("y", this.margin.top)
+            .attr("shape-rendering", "geometricPrecision");
 
         this.lineGroup
             .append("rect")
@@ -438,12 +553,17 @@ export class Gantt implements IVisual {
             .attr("height", 1)
             .attr("y", this.margin.top)
             .attr("fill", this.colorHelper.getHighContrastColor("foreground", Gantt.DefaultValues.TaskLineColor));
+        this.lineGroup.selectAll("rect")
+            .attr("shape-rendering", "geometricPrecision");
 
         this.collapseAllGroup = this.lineGroup
             .append("g")
-            .classed(Gantt.CollapseAll.className, true);
+            .classed(Gantt.CollapseAll.className, true)
+            .attr("shape-rendering", "geometricPrecision")
+            .attr("text-rendering", "geometricPrecision");
+    }
 
-        // create legend container
+    private createLegendContainer(element: HTMLElement): void {
         const interactiveBehavior: IInteractiveBehavior = this.colorHelper.isHighContrast ? new OpacityLegendBehavior() : null;
         this.legend = createLegend(
             element,
@@ -452,7 +572,9 @@ export class Gantt implements IVisual {
             true,
             LegendPosition.Top,
             interactiveBehavior);
+    }
 
+    private handleScrollEvent(): void {
         this.ganttDiv.on("scroll", (event) => {
             if (this.viewModel) {
                 // Mark that user has scrolled
@@ -1756,9 +1878,7 @@ export class Gantt implements IVisual {
         let axisLength: number = 0;
         if (this.hasNotNullableDates) {
             const startDate: Date = minDateTask.start;
-            console.log(startDate);
             let endDate: Date = maxDateTask.end;
-            console.log(endDate);
 
             if (startDate.toString() === endDate.toString()) {
                 endDate = new Date(endDate.valueOf() + (24 * 60 * 60 * 1000));
@@ -2124,6 +2244,12 @@ export class Gantt implements IVisual {
             .selectAll("path")
             .style("stroke", axisColor);
 
+        // Ensure axis lines and text are crisp
+        this.axisGroup.selectAll("path,line")
+            .attr("shape-rendering", "geometricPrecision");
+        this.axisGroup.selectAll("text")
+            .attr("text-rendering", "geometricPrecision");
+
         this.axisGroup
             .selectAll(".tick line")
             .style("stroke", (timestamp: number) => this.setTickColor(timestamp, axisColor));
@@ -2455,6 +2581,12 @@ export class Gantt implements IVisual {
             .merge(taskGroupSelection);
 
         taskGroupSelectionMerged.classed(Gantt.TaskGroup.className, true);
+
+        // Ensure all task rects and text are crisp
+        this.taskGroup.selectAll("rect")
+            .attr("shape-rendering", "geometricPrecision");
+        this.taskGroup.selectAll("text")
+            .attr("text-rendering", "geometricPrecision");
 
         const taskSelection: Selection<Task> = this.taskSelectionRectRender(taskGroupSelectionMerged);
         this.taskMainRectRender(taskSelection, taskConfigHeight, generalBarsRoundedCorners);

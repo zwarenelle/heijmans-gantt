@@ -2,6 +2,13 @@
 @import (less) "../node_modules/powerbi-visuals-utils-chartutils/lib/index.css";
 
 .visual {
+    /* Ensure crisp rendering for all elements */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: geometricPrecision;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+
     .gantt-body {
         overflow: auto;
         position: absolute;
@@ -15,6 +22,7 @@
             path,
             line {
                 stroke: #888; // softer gray
+                shape-rendering: geometricPrecision;
             }
 
             path {
@@ -27,6 +35,7 @@
             }
 
             font-size: 11px; // slightly larger for readability
+            text-rendering: geometricPrecision;
         }
 
         .tasks {
@@ -37,12 +46,14 @@
                 border: 1px solid #bbdefb;
                 opacity: 1; // Remove animation/fade
                 transition: box-shadow 0.2s, background 0.2s, border 0.2s;
+                image-rendering: crisp-edges;
 
                 &:hover {
                     background: linear-gradient(90deg, #90caf9 0%, #1976d2 100%);
                     box-shadow: 0 4px 16px rgba(25, 118, 210, 0.18);
                     border: 1.5px solid #1976d2;
                     cursor: pointer;
+                    image-rendering: crisp-edges;
                 }
 
                 .task-resource {
@@ -53,6 +64,9 @@
                     text-align: center;
                     letter-spacing: .22px;
                     padding: 2px 8px;
+                    -webkit-font-smoothing: antialiased;
+                    -moz-osx-font-smoothing: grayscale;
+                    text-rendering: geometricPrecision;
                 }
 
                 .task-progress {
@@ -70,6 +84,7 @@
             stroke-width: 2px;
             stroke-dasharray: 3, 3;
             stroke: #1976d2; // blue accent
+            shape-rendering: geometricPrecision;
         }
 
         .task-labels {
@@ -77,6 +92,9 @@
             font-weight: 500;
             fill: #222;
             font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: geometricPrecision;
         }
 
         .task-lines {
@@ -84,6 +102,9 @@
                 font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
                 font-weight: 400;
                 letter-spacing: .22px;
+                -webkit-font-smoothing: antialiased;
+                -moz-osx-font-smoothing: grayscale;
+                text-rendering: geometricPrecision;
 
                 .parent {
                     font-weight: 700;
@@ -104,6 +125,8 @@
     stroke-width: 1.5;
     shape-rendering: crispEdges;
     pointer-events: none;
+    /* For SVG lines, ensure geometric precision */
+    shape-rendering: geometricPrecision;
 }
 
 .visual .gantt .today-line {
@@ -113,6 +136,7 @@
     stroke-dasharray: 6, 3 !important;
     shape-rendering: crispEdges;
     pointer-events: none;
+    shape-rendering: geometricPrecision;
 }
 
 .weekend-background {
@@ -126,6 +150,9 @@
     font-size: 10px;
     fill: #888;
     pointer-events: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: geometricPrecision;
 }
 
 .capacity-label {
@@ -133,6 +160,9 @@
     font-size: 10px;
     fill: #888;
     pointer-events: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: geometricPrecision;
 }
 
 .sticky-resource-label {
@@ -143,6 +173,9 @@
     text-align: center;
     letter-spacing: .22px;
     padding: 2px 8px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: geometricPrecision;
 }
 
 .task-labels-container {
@@ -166,4 +199,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: geometricPrecision;
 }
