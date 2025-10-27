@@ -1047,6 +1047,17 @@ export class Gantt implements IVisual {
 
         this.addTooltipInfoForCollapsedTasks(tasks, collapsedTasks, formatters, durationUnit, localizationManager, isEndDateFilled, settings);
 
+        // Ensure "special" short-name tasks are placed after full-name tasks
+        tasks.sort((a: Task, b: Task) => {
+            const aSpecial = Gantt.isSpecialTaskName(a);
+            const bSpecial = Gantt.isSpecialTaskName(b);
+            if (aSpecial === bSpecial) {
+                return 0;
+            }
+            // non-special first => special after
+            return aSpecial ? 1 : -1;
+        });
+
         return tasks;
     }
 
@@ -1115,11 +1126,15 @@ export class Gantt implements IVisual {
         let resource: string;
 
         // Special task names
-
         if (extraInformation[1].value.substring(0, 2) == "LS" ||
             extraInformation[1].value.substring(0, 2) == "MS" ||
             extraInformation[1].value.substring(0, 2) == "ES" ||
-            extraInformation[1].value == "HA/OV"
+            extraInformation[1].value == "HA/OV" ||
+            extraInformation[1].value == "Basishygiëne" ||
+            extraInformation[1].value == "Basishygiëne met BRL" ||
+            extraInformation[1].value.substring(0, 6) == "Oranje" ||
+            extraInformation[1].value.substring(0, 4) == "Rood" ||
+            extraInformation[1].value.substring(0, 5) == "Zwart"
         ) {
             resource = extraInformation[1].value;
         }
@@ -1346,6 +1361,27 @@ export class Gantt implements IVisual {
         }
 
         return extraInformation;
+    }
+
+    // Return true when a task uses the "special" naming rules used elsewhere in the file
+    private static isSpecialTaskName(task: Task): boolean {
+        const maybe = task?.extraInformation && task.extraInformation[1] && task.extraInformation[1].value;
+        if (!maybe || typeof maybe !== "string") {
+            return false;
+        }
+        const v = maybe;
+        if (v.substring(0, 2) === "LS" ||
+            v.substring(0, 2) === "MS" ||
+            v.substring(0, 2) === "ES" ||
+            v === "HA/OV" ||
+            v === "Basishygiëne" ||
+            v === "Basishygiëne met BRL" ||
+            v.substring(0, 6) === "Oranje" ||
+            v.substring(0, 4) === "Rood" ||
+            v.substring(0, 5) === "Zwart") {
+            return true;
+        }
+        return false;
     }
 
     public static sortTasksWithParents(tasks: Task[], sortingOptions: SortingOptions): Task[] {
