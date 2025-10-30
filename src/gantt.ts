@@ -2103,20 +2103,30 @@ export class Gantt implements IVisual {
             const groupTasks = groups[key];
 
             // Sort within the group by extraInformation[1].value (ascending).
+            // For "special" tasks add 100 to that value so they sort later.
             // Tie-breaker: start time.
-            groupTasks.sort((a: Task, b: Task) => {
-                const aVal = a?.extraInformation?.[1]?.value;
-                const bVal = b?.extraInformation?.[1]?.value;
-
-                if (aVal == null && bVal == null) {
-                    return a.start.getTime() - b.start.getTime();
+            const valueForSort = (t: Task) => {
+                const raw = t?.extraInformation?.[1]?.value;
+                let num = typeof raw === "number" ? raw : (raw != null ? parseFloat(String(raw)) : NaN);
+                if (isNaN(num)) {
+                    // Put undefined/non-numeric values to the end
+                    num = Number.POSITIVE_INFINITY;
                 }
-                if (aVal == null) return 1;
-                if (bVal == null) return -1;
+                // If task is a "special" task, add offset
+                if (Gantt.isSpecialTaskName(t)) {
+                    num += 100;
+                }
+                return num;
+            };
+
+            groupTasks.sort((a: Task, b: Task) => {
+                const aVal = valueForSort(a);
+                const bVal = valueForSort(b);
 
                 if (aVal < bVal) return -1;
                 if (aVal > bVal) return 1;
 
+                // tie-breaker by start time
                 return a.start.getTime() - b.start.getTime();
             });
 
