@@ -1047,17 +1047,6 @@ export class Gantt implements IVisual {
 
         this.addTooltipInfoForCollapsedTasks(tasks, collapsedTasks, formatters, durationUnit, localizationManager, isEndDateFilled, settings);
 
-        // Ensure "special" short-name tasks are placed after full-name tasks
-        tasks.sort((a: Task, b: Task) => {
-            const aSpecial = Gantt.isSpecialTaskName(a);
-            const bSpecial = Gantt.isSpecialTaskName(b);
-            if (aSpecial === bSpecial) {
-                return 0;
-            }
-            // non-special first => special after
-            return aSpecial ? 1 : -1;
-        });
-
         return tasks;
     }
 
@@ -1126,23 +1115,27 @@ export class Gantt implements IVisual {
         let resource: string;
 
         // Special task names
-        if (extraInformation[1].value.substring(0, 2) == "LS" ||
-            extraInformation[1].value.substring(0, 2) == "MS" ||
-            extraInformation[1].value.substring(0, 2) == "ES" ||
-            extraInformation[1].value == "HA/OV" ||
-            extraInformation[1].value == "Basishygiëne" ||
-            extraInformation[1].value == "Basishygiëne met BRL" ||
-            extraInformation[1].value.substring(0, 6) == "Oranje" ||
-            extraInformation[1].value.substring(0, 4) == "Rood" ||
-            extraInformation[1].value.substring(0, 5) == "Zwart"
+        if (extraInformation[0].value.substring(0, 2) == "LS" ||
+            extraInformation[0].value.substring(0, 2) == "MS" ||
+            extraInformation[0].value.substring(0, 2) == "ES" ||
+            extraInformation[0].value == "HA/OV" ||
+            extraInformation[0].value == "Basishygiëne" ||
+            extraInformation[0].value == "Basishygiëne met BRL" ||
+            extraInformation[0].value.substring(0, 6) == "Oranje" ||
+            extraInformation[0].value.substring(0, 4) == "Rood" ||
+            extraInformation[0].value.substring(0, 5) == "Zwart"
         ) {
-            resource = extraInformation[1].value;
+            resource = extraInformation[0].value;
         }
         else { // Regular (full task names)
             resource = (values.Resource && values.Resource[index] as string) || "";
-            extraInformation.forEach(values => {
-                resource += " - " + values.value;
-            });
+            for (let index = 2; index < extraInformation.length; index++) {
+                try {
+                    resource += " - " + extraInformation[index].value;
+                } catch (error) {
+                    resource = "Fout";
+                }
+            }
         }
 
         const taskParentName: string = (values.Parent && values.Parent[index] as string) || null;
@@ -1365,7 +1358,7 @@ export class Gantt implements IVisual {
 
     // Return true when a task uses the "special" naming rules used elsewhere in the file
     private static isSpecialTaskName(task: Task): boolean {
-        const maybe = task?.extraInformation && task.extraInformation[1] && task.extraInformation[1].value;
+        const maybe = task?.extraInformation && task.extraInformation[0] && task.extraInformation[0].value;
         if (!maybe || typeof maybe !== "string") {
             return false;
         }
@@ -2092,32 +2085,65 @@ export class Gantt implements IVisual {
         return axes;
     }
 
-    /**
- * Assigns a 'lane' index to each task in a group so overlapping tasks are stacked.
- * Modifies tasks in-place.
- */
+    // Assigns a 'lane' index to each task in a group so overlapping tasks are stacked.
+    // Modifies tasks in-place.
     private static assignTaskLanes(tasks: Task[]): void {
-        // Sort by start time
-        const sorted = tasks.slice().sort((a, b) => a.start.getTime() - b.start.getTime());
-        const lanes: Task[][] = [];
+        // Group tasks by extraInformation[3].value (fall back to empty string)
+        const groups: { [key: string]: Task[] } = lodashGroupBy(tasks, (t: Task) => {
+            const v = t?.extraInformation?.[3]?.value;
+            return (typeof v === "undefined" || v === null) ? "" : String(v);
+        });
 
-        sorted.forEach(task => {
-            let placed = false;
-            for (let i = 0; i < lanes.length; i++) {
-                // Check if last task in this lane ends before this task starts
-                const last = lanes[i][lanes[i].length - 1];
-                if (!last.end || last.end.getTime() <= task.start.getTime()) {
-                    lanes[i].push(task);
-                    task.lane = i;
-                    placed = true;
-                    break;
+        // Sort group keys to create a deterministic order (you can change sort to a custom order)
+        const groupKeys = Object.keys(groups).sort();
+
+        let laneOffset = 0;
+
+        groupKeys.forEach((key) => {
+            const groupTasks = groups[key];
+
+            // Sort within the group by extraInformation[1].value (ascending).
+            // Tie-breaker: start time.
+            groupTasks.sort((a: Task, b: Task) => {
+                const aVal = a?.extraInformation?.[1]?.value;
+                const bVal = b?.extraInformation?.[1]?.value;
+
+                if (aVal == null && bVal == null) {
+                    return a.start.getTime() - b.start.getTime();
                 }
-            }
-            if (!placed) {
-                // New lane
-                task.lane = lanes.length;
-                lanes.push([task]);
-            }
+                if (aVal == null) return 1;
+                if (bVal == null) return -1;
+
+                if (aVal < bVal) return -1;
+                if (aVal > bVal) return 1;
+
+                return a.start.getTime() - b.start.getTime();
+            });
+
+            // Assign lanes for this group's tasks using a greedy non-overlapping placement.
+            // Lanes for each group are kept contiguous by adding laneOffset.
+            const lanes: Task[][] = [];
+            groupTasks.forEach(task => {
+                let placed = false;
+                for (let i = 0; i < lanes.length; i++) {
+                    const last = lanes[i][lanes[i].length - 1];
+                    // If last task in lane ends before this task starts -> place it here
+                    if (!last.end || last.end.getTime() <= task.start.getTime()) {
+                        lanes[i].push(task);
+                        task.lane = laneOffset + i;
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) {
+                    // New lane for this group
+                    task.lane = laneOffset + lanes.length;
+                    lanes.push([task]);
+                }
+            });
+
+            // Move offset so next group's lanes are placed below current group's lanes
+            laneOffset += lanes.length;
         });
     }
 
