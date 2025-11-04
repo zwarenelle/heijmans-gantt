@@ -1118,12 +1118,14 @@ export class Gantt implements IVisual {
         if (extraInformation[0].value.substring(0, 2) == "LS" ||
             extraInformation[0].value.substring(0, 2) == "MS" ||
             extraInformation[0].value.substring(0, 2) == "ES" ||
+            extraInformation[0].value.substring(0, 3) == "HAS" ||
             extraInformation[0].value == "HA/OV" ||
             extraInformation[0].value == "Basishygiëne" ||
             extraInformation[0].value == "Basishygiëne met BRL" ||
             extraInformation[0].value.substring(0, 6) == "Oranje" ||
             extraInformation[0].value.substring(0, 4) == "Rood" ||
-            extraInformation[0].value.substring(0, 5) == "Zwart"
+            extraInformation[0].value.substring(0, 5) == "Zwart" ||
+            extraInformation[0].value.substring(0, 6) == "Divers"
         ) {
             resource = extraInformation[0].value;
         }
@@ -1366,12 +1368,14 @@ export class Gantt implements IVisual {
         if (v.substring(0, 2) === "LS" ||
             v.substring(0, 2) === "MS" ||
             v.substring(0, 2) === "ES" ||
+            v.substring(0, 3) === "HAS" ||
             v === "HA/OV" ||
             v === "Basishygiëne" ||
             v === "Basishygiëne met BRL" ||
             v.substring(0, 6) === "Oranje" ||
             v.substring(0, 4) === "Rood" ||
-            v.substring(0, 5) === "Zwart") {
+            v.substring(0, 5) === "Zwart" ||
+            v.substring(0, 6) === "Divers") {
             return true;
         }
         return false;
