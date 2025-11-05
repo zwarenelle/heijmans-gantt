@@ -180,8 +180,6 @@ export class SortingOptions {
     sortingDirection: SortDirection;
 }
 
-
-
 export class Gantt implements IVisual {
     // Track user scroll and last scroll position
     private hasUserScrolled: boolean = false;
@@ -746,10 +744,18 @@ export class Gantt implements IVisual {
         }
 
         if (task.resource) {
-            tooltipDataArray.push({
-                displayName: localizationManager.getDisplayName("Role_Resource"),
-                value: task.resource
-            });
+            if (Gantt.isSpecialTaskName(task)) {
+                tooltipDataArray.push({
+                    displayName: localizationManager.getDisplayName("Role_Resource"),
+                    value: task.specialResource
+                });
+            }
+            else {
+                tooltipDataArray.push({
+                    displayName: localizationManager.getDisplayName("Role_Resource"),
+                    value: task.resource
+                });
+            }
         }
 
         if (task.tooltipInfo && task.tooltipInfo.length) {
@@ -1121,6 +1127,7 @@ export class Gantt implements IVisual {
     private static createTask(values: GanttColumns<any>, index: number, hasHighlights: boolean, categoricalValues: powerbi.DataViewValueColumns, color: string, completion: number, categoryValue: string | number | Date | boolean, endDate: Date, duration: number, taskType: TaskTypeMetadata, selectionBuilder: powerbi.visuals.ISelectionIdBuilder, wasDowngradeDurationUnit: boolean, stepDurationTransformation: number) {
         const extraInformation: ExtraInformation[] = this.getExtraInformationFromValues(values, index);
         let resource: string;
+        let specialResource: string;
 
         // Special task names
         if (extraInformation[0].value.substring(0, 2) == "LS" ||
@@ -1135,6 +1142,14 @@ export class Gantt implements IVisual {
             extraInformation[0].value.substring(0, 5) == "Zwart" ||
             extraInformation[0].value.substring(0, 6) == "Divers"
         ) {
+            specialResource = (values.Resource && values.Resource[index] as string) || "";
+            for (let index = 2; index < extraInformation.length; index++) {
+                try {
+                    specialResource += " - " + extraInformation[index].value;
+                } catch (error) {
+                    specialResource = "Fout";
+                }
+            }
             resource = extraInformation[0].value;
         }
         else { // Regular (full task names)
@@ -1190,7 +1205,8 @@ export class Gantt implements IVisual {
             }] : [],
             highlight: highlight !== null,
             lane: null,
-            groupIndex: null
+            groupIndex: null,
+            specialResource
         };
 
         return { taskParentName, milestone, startDate, extraInformation, highlight, task };
@@ -1340,7 +1356,8 @@ export class Gantt implements IVisual {
                 Milestones: milestone && startDate ? [{ type: milestone, start: startDate, tooltipInfo: null, category: categoryValue as string }] : [],
                 highlight: highlight !== null,
                 lane: null,
-                groupIndex: null
+                groupIndex: null,
+                specialResource: null
             };
 
             tasks.push(parentTask);

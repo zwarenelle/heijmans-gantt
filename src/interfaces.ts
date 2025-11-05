@@ -61,6 +61,7 @@ export interface Task extends SelectableDataPoint {
     Milestones?: Milestone[];
     lane: number;
     groupIndex: number;
+    specialResource: string;
 }
 
 export interface GroupedTask {
