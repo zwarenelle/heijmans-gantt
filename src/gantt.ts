@@ -424,6 +424,7 @@ export class Gantt implements IVisual {
             // Calculate transforms so printed output corresponds to the currently visible viewport
             const savedScrollLeft = this._printBackup.ganttScrollLeft || 0;
             const savedScrollTop = this._printBackup.ganttScrollTop || 0;
+            console.log("savedScrollTop: ", savedScrollTop);
 
             const taskLabelsWidth: number = this.viewModel && this.viewModel.settings && this.viewModel.settings.taskLabelsCardSettings.show.value
                 ? this.viewModel.settings.taskLabelsCardSettings.width.value
@@ -431,21 +432,28 @@ export class Gantt implements IVisual {
 
             // Shift chart left by savedScrollLeft so the printed page's left edge matches the visible viewport
             const chartTranslateX = taskLabelsWidth + this.margin.left + Gantt.SubtasksLeftMargin - savedScrollLeft;
-            const chartTranslateY = this.margin.top;
+            // Move visual up by savedScrollTop so printed top corresponds to the scrolled viewport
+            const chartTranslateY = this.margin.top - savedScrollTop;
 
-            // Axis needs to be placed at the same horizontal position as chart content and vertically adjusted by savedScrollTop
+            // Axis (and collapse control) must be shifted by the same vertical offset so labels align with chart content
             const axisTranslateX = chartTranslateX;
-            const axisTranslateY = Gantt.TaskLabelsMarginTop + savedScrollTop;
+            const axisTranslateY = Gantt.TaskLabelsMarginTop - savedScrollTop;
 
             try {
+                // Ensure the DOM scroll remains at the saved values (some browsers reset it during layout)
+                try {
+                    ganttNode.scrollLeft = savedScrollLeft;
+                    ganttNode.scrollTop = savedScrollTop;
+                } catch (e) { /* ignore */ }
+
                 this.chartGroup && this.chartGroup.attr("transform", SVGManipulations.translate(chartTranslateX, chartTranslateY));
                 this.axisGroup && this.axisGroup.attr("transform", SVGManipulations.translate(axisTranslateX, axisTranslateY));
-                // Reset lineGroup shift because chartGroup itself was shifted
-                this.lineGroup && this.lineGroup.attr("transform", SVGManipulations.translate(0, 0));
-                // collapseAllGroup stays relative to top left of SVG
-                this.collapseAllGroup && this.collapseAllGroup.attr("transform", SVGManipulations.translate(0, this.margin.top / 4 + Gantt.AxisTopMargin));
+                // For print: keep left labels fixed horizontally at left edge, move them up by savedScrollTop
+                this.lineGroup && this.lineGroup.attr("transform", SVGManipulations.translate(0, -savedScrollTop));
+                // Move collapseAllGroup up by same savedScrollTop so it stays aligned
+                this.collapseAllGroup && this.collapseAllGroup.attr("transform", SVGManipulations.translate(0, this.margin.top / 4 + Gantt.AxisTopMargin - savedScrollTop));
             } catch (e) {
-                // ignore transform errors during print preparation
+                console.error(e);
             }
         };
 
