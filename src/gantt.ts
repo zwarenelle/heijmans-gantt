@@ -1129,38 +1129,20 @@ export class Gantt implements IVisual {
         let resource: string;
         let specialResource: string;
 
-        // Special task names
-        if (extraInformation[0].value.substring(0, 2) == "LS" ||
-            extraInformation[0].value.substring(0, 2) == "MS" ||
-            extraInformation[0].value.substring(0, 2) == "ES" ||
-            extraInformation[0].value.substring(0, 3) == "HAS" ||
-            extraInformation[0].value == "HA/OV" ||
-            extraInformation[0].value == "Basishygiëne" ||
-            extraInformation[0].value == "Basishygiëne met BRL" ||
-            extraInformation[0].value.substring(0, 6) == "Oranje" ||
-            extraInformation[0].value.substring(0, 4) == "Rood" ||
-            extraInformation[0].value.substring(0, 5) == "Zwart" ||
-            extraInformation[0].value.substring(0, 6) == "Divers"
-        ) {
-            specialResource = (values.Resource && values.Resource[index] as string) || "";
-            for (let index = 2; index < extraInformation.length; index++) {
-                try {
-                    specialResource += " - " + extraInformation[index].value;
-                } catch (error) {
-                    specialResource = "Fout";
-                }
+        resource = (values.Resource && values.Resource[index] as string) || "";
+        for (let index = 2; index < extraInformation.length; index++) {
+            try {
+                resource += " - " + extraInformation[index].value;
+            } catch (error) {
+                resource = "Fout";
             }
-            resource = extraInformation[0].value;
         }
-        else { // Regular (full task names)
-            resource = (values.Resource && values.Resource[index] as string) || "";
-            for (let index = 2; index < extraInformation.length; index++) {
-                try {
-                    resource += " - " + extraInformation[index].value;
-                } catch (error) {
-                    resource = "Fout";
-                }
-            }
+
+        // Special task names
+        if (Gantt.isSpecialTaskString(extraInformation[0].value)
+        ) {
+            specialResource = resource;
+            resource = extraInformation[0].value;
         }
 
         const taskParentName: string = (values.Parent && values.Parent[index] as string) || null;
@@ -1383,24 +1365,35 @@ export class Gantt implements IVisual {
         return extraInformation;
     }
 
-    // Return true when a task uses the "special" naming rules used elsewhere in the file
     private static isSpecialTaskName(task: Task): boolean {
-        const maybe = task?.extraInformation && task.extraInformation[0] && task.extraInformation[0].value;
-        if (!maybe || typeof maybe !== "string") {
+        const specialName = task?.extraInformation && task.extraInformation[0] && task.extraInformation[0].value;
+        if (!specialName || typeof specialName !== "string") {
             return false;
         }
-        const v = maybe;
-        if (v.substring(0, 2) === "LS" ||
-            v.substring(0, 2) === "MS" ||
-            v.substring(0, 2) === "ES" ||
-            v.substring(0, 3) === "HAS" ||
-            v === "HA/OV" ||
-            v === "Basishygiëne" ||
-            v === "Basishygiëne met BRL" ||
-            v.substring(0, 6) === "Oranje" ||
-            v.substring(0, 4) === "Rood" ||
-            v.substring(0, 5) === "Zwart" ||
-            v.substring(0, 6) === "Divers") {
+        if (Gantt.isSpecialTaskString(specialName)) {
+            return true;
+        }
+        return false;
+    }
+
+    // Return true when a task uses the "special" naming rules used elsewhere in the file
+    private static isSpecialTaskString(name: string): boolean {
+        const specialName = name;
+        if (!specialName || typeof specialName !== "string") {
+            return false;
+        }
+        if (specialName.substring(0, 2) === "LS" ||
+            specialName.substring(0, 2) === "MS" ||
+            specialName.substring(0, 2) === "ES" ||
+            specialName.substring(0, 3) === "HAS" ||
+            specialName === "HA/OV" ||
+            specialName === "Basishygiëne" ||
+            specialName === "Basishygiëne met BRL" ||
+            specialName.substring(0, 6) === "Oranje" ||
+            specialName.substring(0, 4) === "Rood" ||
+            specialName.substring(0, 5) === "Zwart" ||
+            specialName.substring(0, 6) === "Divers" ||
+            specialName.substring(0, 6) === "Boring") {
             return true;
         }
         return false;
