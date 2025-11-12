@@ -747,18 +747,10 @@ export class Gantt implements IVisual {
         // }
 
         if (task.resource) {
-            if (Gantt.isSpecialTaskName(task)) {
-                tooltipDataArray.push({
-                    displayName: localizationManager.getDisplayName("Role_Resource"),
-                    value: task.specialResource
-                });
-            }
-            else {
-                tooltipDataArray.push({
-                    displayName: localizationManager.getDisplayName("Role_Resource"),
-                    value: task.resource
-                });
-            }
+            tooltipDataArray.push({
+                displayName: localizationManager.getDisplayName("Role_Resource"),
+                value: task.id
+            });
         }
 
         if (task.tooltipInfo && task.tooltipInfo.length) {
@@ -1131,9 +1123,10 @@ export class Gantt implements IVisual {
     private static createTask(values: GanttColumns<any>, index: number, hasHighlights: boolean, categoricalValues: powerbi.DataViewValueColumns, color: string, completion: number, categoryValue: string | number | Date | boolean, endDate: Date, duration: number, taskType: TaskTypeMetadata, selectionBuilder: powerbi.visuals.ISelectionIdBuilder, wasDowngradeDurationUnit: boolean, stepDurationTransformation: number) {
         const extraInformation: ExtraInformation[] = this.getExtraInformationFromValues(values, index);
         let resource: string;
-        let specialResource: string;
 
+        const id = (values.Resource && values.Resource[index] as string) || "";
         resource = (values.Resource && values.Resource[index] as string) || "";
+
         for (let index = 2; index < extraInformation.length; index++) {
             try {
                 resource += " - " + extraInformation[index].value;
@@ -1145,7 +1138,6 @@ export class Gantt implements IVisual {
         // Special task names
         if (Gantt.isSpecialTaskString(extraInformation[0].value)
         ) {
-            specialResource = resource;
             resource = extraInformation[0].value;
         }
 
@@ -1192,7 +1184,7 @@ export class Gantt implements IVisual {
             highlight: highlight !== null,
             lane: null,
             groupIndex: null,
-            specialResource
+            id
         };
 
         return { taskParentName, milestone, startDate, extraInformation, highlight, task };
@@ -1343,7 +1335,7 @@ export class Gantt implements IVisual {
                 highlight: highlight !== null,
                 lane: null,
                 groupIndex: null,
-                specialResource: null
+                id: null
             };
 
             tasks.push(parentTask);
