@@ -115,7 +115,7 @@
                     },
                     "ExtraInformation": {
                         "min": 0,
-                        "max": 6
+                        "max": 7
                     },
                     "Milestones": {
                         "min": 0,
@@ -157,7 +157,7 @@
                     },
                     "ExtraInformation": {
                         "min": 0,
-                        "max": 6
+                        "max": 7
                     },
                     "Milestones": {
                         "min": 0,
@@ -199,7 +199,7 @@
                     },
                     "ExtraInformation": {
                         "min": 0,
-                        "max": 6
+                        "max": 7
                     },
                     "Milestones": {
                         "min": 0,
@@ -241,7 +241,7 @@
                     },
                     "ExtraInformation": {
                         "min": 0,
-                        "max": 6
+                        "max": 7
                     },
                     "Milestones": {
                         "min": 0,

@@ -152,7 +152,8 @@ import LegendDataPoint = legendInterfaces.LegendDataPoint;
 // powerbi.extensibility.utils.chart
 import IAxisProperties = axisInterfaces.IAxisProperties;
 
-export const SKIP_TOOLTIP = 1;
+// URL Index, please make sure it's the last one that shouldn't be displayed in the task name
+export const INFORMATION_INDEX = 2;
 
 const PercentFormat: string = "0.00 %;-0.00 %;0.00 %";
 const ScrollMargin: number = 100;
@@ -758,7 +759,7 @@ export class Gantt implements IVisual {
         }
 
         task.extraInformation
-            .filter((_, i) => i !== SKIP_TOOLTIP) // Don't add tooltip info with SKIP_TOOLTIP index 
+            .filter((_, i) => i !== 1) // SKIP_TOOLTIP --> Don't add tooltip info with these indexes
             .map(tooltip => {
                 if (typeof tooltip.value === "string") {
                     return tooltip;
@@ -1127,7 +1128,7 @@ export class Gantt implements IVisual {
         const id = (values.Resource && values.Resource[index] as string) || "";
         resource = (values.Resource && values.Resource[index] as string) || "";
 
-        for (let index = 2; index < extraInformation.length; index++) {
+        for (let index = INFORMATION_INDEX; index < extraInformation.length; index++) {
             try {
                 resource += " - " + extraInformation[index].value;
             } catch (error) {
