@@ -2105,10 +2105,12 @@ export class Gantt implements IVisual {
     }
 
     // Assigns a 'lane' index to each task in a group so overlapping tasks are stacked.
-    // Minimizes vertical whitespace by allowing cross-group lane sharing.
+    // Keeps tasks with same extraInformation[3] grouped together in order.
+    // Minimizes whitespace while preserving valueForSort ordering within each group.
     // Modifies tasks in-place.
+
+    // Group tasks by extraInformation[3].value for sorting/grouping logic
     private static assignTaskLanes(tasks: Task[]): void {
-        // Group tasks by extraInformation[3].value for sorting/grouping logic
         const groups: { [key: string]: Task[] } = lodashGroupBy(tasks, (t: Task) => {
             const v = t?.extraInformation?.[3]?.value;
             return (typeof v === "undefined" || v === null) ? "" : String(v);
@@ -2117,25 +2119,21 @@ export class Gantt implements IVisual {
         // Sort group keys to create a deterministic order
         const groupKeys = Object.keys(groups).sort();
 
-        // Collect all tasks in order, but maintain group information
-        const allTasksWithGroup: Array<{ task: Task; groupKey: string }> = [];
+        const valueForSort = (t: Task) => {
+            const raw = t?.extraInformation?.[1]?.value;
+            let num = typeof raw === "number" ? raw : (raw != null ? parseFloat(String(raw)) : NaN);
+            if (isNaN(num)) { num = Number.POSITIVE_INFINITY; }
+            if (Gantt.isSpecialTaskName(t)) { num += 100; }
+            return num;
+        };
+
+        // Collect all tasks in order, maintaining group information and value for sort
+        const allTasksWithGroup: Array<{ task: Task; groupKey: string; sortValue: number }> = [];
 
         groupKeys.forEach((key) => {
             const groupTasks = groups[key];
 
-            // Sort within the group by extraInformation[1].value (ascending).
-            const valueForSort = (t: Task) => {
-                const raw = t?.extraInformation?.[1]?.value;
-                let num = typeof raw === "number" ? raw : (raw != null ? parseFloat(String(raw)) : NaN);
-                if (isNaN(num)) {
-                    num = Number.POSITIVE_INFINITY;
-                }
-                if (Gantt.isSpecialTaskName(t)) {
-                    num += 100;
-                }
-                return num;
-            };
-
+            // Sort within the group by extraInformation[1].value (ascending), then by start time
             groupTasks.sort((a: Task, b: Task) => {
                 const aVal = valueForSort(a);
                 const bVal = valueForSort(b);
@@ -2147,43 +2145,86 @@ export class Gantt implements IVisual {
             });
 
             groupTasks.forEach(task => {
-                allTasksWithGroup.push({ task, groupKey: key });
+                allTasksWithGroup.push({ task, groupKey: key, sortValue: valueForSort(task) });
             });
         });
 
-        // Global lane assignment using interval overlap detection
-        // This allows tasks from different groups to share lanes if they don't overlap
-        const lanes: Array<{ tasks: Task[], endTime: number }> = [];
+        // Global lane assignment using interval overlap detection: Enforce that within each group, lower sortValue tasks always appear in lower lanes
+        const lanes: Array<{ tasks: Task[], endTime: number, groupKey: string, minSortValueInGroup: Map<string, number> }> = [];
 
-        allTasksWithGroup.forEach(({ task }) => {
+        allTasksWithGroup.forEach(({ task, groupKey, sortValue }) => {
             const taskStartTime = task.start.getTime();
             const taskEndTime = (task.end?.getTime() ?? taskStartTime);
 
-            // Find the first lane where this task doesn't overlap with ANY existing task
             let placed = false;
 
             for (let i = 0; i < lanes.length; i++) {
                 const lane = lanes[i];
+
+                // Check for time overlap
                 const hasOverlap = lane.tasks.some(existingTask => {
                     const existingStart = existingTask.start.getTime();
                     const existingEnd = (existingTask.end?.getTime() ?? existingStart);
-                    // Intervals overlap if: start1 < end2 AND start2 < end1
                     return taskStartTime < existingEnd && taskEndTime > existingStart;
                 });
 
                 if (!hasOverlap) {
-                    lane.tasks.push(task);
-                    lane.endTime = Math.max(lane.endTime, taskEndTime);
-                    task.lane = i;
-                    placed = true;
-                    break;
+                    // Check group ordering constraint; This task can only go in this lane if:
+                    // 1. This lane has no tasks from this group, OR 
+                    // 2. All tasks in this lane from this group have sortValue <= this task's sortValue
+                    const minSortInThisGroup = lane.minSortValueInGroup.get(groupKey);
+                    const maxSortInThisGroup = Math.max(...lane.tasks.filter(t => {
+                        const tGroupKey = lodashGroupBy([t], (x: Task) => {
+                            const v = x?.extraInformation?.[3]?.value;
+                            return (typeof v === "undefined" || v === null) ? "" : String(v);
+                        });
+                        return Object.keys(tGroupKey)[0] === groupKey;
+                    }).map(t => valueForSort(t)), -1);
+
+                    // Additionally, check if any HIGHER lanes have this group's tasks: If they do, this task's sortValue must be >= their sortValues
+                    let canPlaceHere = true;
+                    if (minSortInThisGroup !== undefined) { // This lane already has tasks from this group
+                        if (maxSortInThisGroup > sortValue) {
+                            canPlaceHere = false;
+                        }
+                    }
+
+                    // Check all higher lanes to ensure we don't violate ordering
+                    if (canPlaceHere) {
+                        for (let j = i + 1; j < lanes.length; j++) {
+                            const higherLane = lanes[j];
+                            const higherMinSort = higherLane.minSortValueInGroup.get(groupKey);
+                            if (higherMinSort !== undefined && higherMinSort < sortValue) {
+                                // Higher lane has this group with lower sortValue - violation!
+                                canPlaceHere = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (canPlaceHere) {
+                        lane.tasks.push(task);
+                        lane.endTime = Math.max(lane.endTime, taskEndTime);
+                        const currentMin = lane.minSortValueInGroup.get(groupKey) ?? Infinity;
+                        lane.minSortValueInGroup.set(groupKey, Math.min(currentMin, sortValue));
+                        task.lane = i;
+                        placed = true;
+                        break;
+                    }
                 }
             }
 
             if (!placed) {
-                // Create new lane only if needed
+                // Create new lane
+                const minSortMap = new Map<string, number>();
+                minSortMap.set(groupKey, sortValue);
                 task.lane = lanes.length;
-                lanes.push({ tasks: [task], endTime: taskEndTime });
+                lanes.push({
+                    tasks: [task],
+                    endTime: taskEndTime,
+                    groupKey,
+                    minSortValueInGroup: minSortMap
+                });
             }
         });
     }
