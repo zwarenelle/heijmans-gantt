@@ -1,12 +1,12 @@
 import powerbiVisualsApi from "powerbi-visuals-api";
-import {formattingSettings} from "powerbi-visuals-utils-formattingmodel";
-import {legendInterfaces} from "powerbi-visuals-utils-chartutils";
-import {LegendDataPoint} from "powerbi-visuals-utils-chartutils/lib/legend/legendInterfaces";
-import {ColorHelper} from "powerbi-visuals-utils-colorutils";
-import {MilestoneShape} from "./enums";
-import {DateType} from "./enums";
-import {ResourceLabelPosition} from "./enums";
-import {DurationUnit} from "./enums";
+import { formattingSettings } from "powerbi-visuals-utils-formattingmodel";
+import { legendInterfaces } from "powerbi-visuals-utils-chartutils";
+import { LegendDataPoint } from "powerbi-visuals-utils-chartutils/lib/legend/legendInterfaces";
+import { ColorHelper } from "powerbi-visuals-utils-colorutils";
+import { MilestoneShape } from "./enums";
+import { DateType } from "./enums";
+import { ResourceLabelPosition } from "./enums";
+import { DurationUnit } from "./enums";
 import ISelectionId = powerbiVisualsApi.visuals.ISelectionId;
 import LegendPosition = legendInterfaces.LegendPosition;
 
@@ -17,17 +17,17 @@ import Model = formattingSettings.Model;
 import FormattingSettingsSlice = formattingSettings.SimpleSlice;
 
 import IEnumMember = powerbi.IEnumMember;
-import {Day} from "./enums";
-import {MilestoneDataPoint} from "./interfaces";
+import { Day } from "./enums";
+import { MilestoneDataPoint } from "./interfaces";
 
-const durationUnitsOptions : IEnumMember[] = [
+const durationUnitsOptions: IEnumMember[] = [
     { displayName: "Visual_DurationUnit_Days", value: DurationUnit.Day },
     { displayName: "Visual_DurationUnit_Hours", value: DurationUnit.Hour },
     { displayName: "Visual_DurationUnit_Minutes", value: DurationUnit.Minute },
     { displayName: "Visual_DurationUnit_Seconds", value: DurationUnit.Second }
 ]
 
-const dayOfWeekOptions : IEnumMember[] = [
+const dayOfWeekOptions: IEnumMember[] = [
     { displayName: "Visual_Day_Monday", value: Day.Monday },
     { displayName: "Visual_Day_Tuesday", value: Day.Tuesday },
     { displayName: "Visual_Day_Wednesday", value: Day.Wednesday },
@@ -37,7 +37,7 @@ const dayOfWeekOptions : IEnumMember[] = [
     { displayName: "Visual_Day_Sunday", value: Day.Sunday }
 ]
 
-export const dateTypeOptions : IEnumMember[] = [
+export const dateTypeOptions: IEnumMember[] = [
     { displayName: "Visual_DateType_Second", value: DateType.Second },
     { displayName: "Visual_DateType_Minute", value: DateType.Minute },
     { displayName: "Visual_DateType_Hour", value: DateType.Hour },
@@ -48,13 +48,13 @@ export const dateTypeOptions : IEnumMember[] = [
     { displayName: "Visual_DateType_Year", value: DateType.Year }
 ]
 
-const shapesOptions : IEnumMember[] = [
+const shapesOptions: IEnumMember[] = [
     { displayName: "Visual_Shape_Rhombus", value: MilestoneShape.Rhombus },
     { displayName: "Visual_Shape_Circle", value: MilestoneShape.Circle },
     { displayName: "Visual_Shape_Square", value: MilestoneShape.Square }
 ]
 
-const positionOptions : IEnumMember[] = [
+const positionOptions: IEnumMember[] = [
     { displayName: "Visual_Position_Top", value: LegendPosition[LegendPosition.Top] },
     { displayName: "Visual_Position_Bottom", value: LegendPosition[LegendPosition.Bottom] },
     { displayName: "Visual_Position_Left", value: LegendPosition[LegendPosition.Left] },
@@ -65,7 +65,7 @@ const positionOptions : IEnumMember[] = [
     { displayName: "Visual_Position_RightCenter", value: LegendPosition[LegendPosition.RightCenter] },
 ];
 
-const resourcePositionOptions : IEnumMember[] = [
+const resourcePositionOptions: IEnumMember[] = [
     { displayName: "Visual_Position_Top", value: ResourceLabelPosition.Top },
     { displayName: "Visual_Position_Right", value: ResourceLabelPosition.Right },
     { displayName: "Visual_Position_Inside", value: ResourceLabelPosition.Inside }
@@ -155,7 +155,7 @@ export class SubTasksCardSettings extends Card {
         displayNameKey: "Visual_ParentDurationByChildren",
         value: true
     });
-    
+
     parentCompletionByChildren = new formattingSettings.ToggleSwitch({
         name: "parentCompletionByChildren",
         displayNameKey: "Visual_ParentCompletionByChildren",
@@ -490,7 +490,7 @@ export class DateTypeCardSettings extends Card {
     slices = [this.type, this.todayColor, this.axisColor, this.axisTextColor];
 }
 
-export class GanttChartSettingsModel extends Model { 
+export class GanttChartSettingsModel extends Model {
     generalCardSettings = new GeneralCardSettings();
     collapsedTasksCardSettings = new CollapsedTasksCardSettings();
     collapsedTasksUpdateIdCardSettings = new CollapsedTasksUpdateIdCardSettings();
@@ -503,12 +503,12 @@ export class GanttChartSettingsModel extends Model {
     taskConfigCardSettings = new TaskConfigCardSettings();
     taskResourceCardSettings = new TaskResourceCardSettings();
     dateTypeCardSettings = new DateTypeCardSettings();
-    
-    cards = [this.generalCardSettings, this.collapsedTasksCardSettings, this.collapsedTasksUpdateIdCardSettings, this.daysOffCardSettings, this.legendCardSettings, 
-            this.milestonesCardSettings, this.taskLabelsCardSettings, this.taskCompletionCardSettings, 
-            this.tooltipConfigCardSettings, this.taskConfigCardSettings, this.taskResourceCardSettings, this.dateTypeCardSettings];
 
-    
+    cards = [this.generalCardSettings, this.collapsedTasksCardSettings, this.collapsedTasksUpdateIdCardSettings, this.daysOffCardSettings, this.legendCardSettings,
+    this.milestonesCardSettings, this.taskLabelsCardSettings, this.taskCompletionCardSettings,
+    this.tooltipConfigCardSettings, this.taskConfigCardSettings, this.taskResourceCardSettings, this.dateTypeCardSettings];
+
+
     setLocalizedOptions(localizationManager: ILocalizationManager) {
         this.setLocalizedDisplayName(durationUnitsOptions, localizationManager);
         this.setLocalizedDisplayName(dayOfWeekOptions, localizationManager);
@@ -516,7 +516,7 @@ export class GanttChartSettingsModel extends Model {
         this.setLocalizedDisplayName(shapesOptions, localizationManager);
         this.setLocalizedDisplayName(resourcePositionOptions, localizationManager);
         this.setLocalizedDisplayName(dateTypeOptions, localizationManager);
-    }       
+    }
 
     populateMilestones(milestonesWithoutDuplicates: {
         [name: string]: MilestoneDataPoint
@@ -532,7 +532,7 @@ export class GanttChartSettingsModel extends Model {
                     selector: ColorHelper.normalizeSelector((<ISelectionId>milestone.identity).getSelector(), false),
                     value: { value: milestone.color }
                 }));
-    
+
                 newSlices.push(new formattingSettings.ItemDropdown({
                     name: this.milestonesCardSettings.shapeType.name,
                     displayName: `${milestone.name} shape`,

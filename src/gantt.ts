@@ -149,10 +149,9 @@ import LegendPosition = legendInterfaces.LegendPosition;
 import LegendData = legendInterfaces.LegendData;
 import createLegend = LegendModule.createLegend;
 import LegendDataPoint = legendInterfaces.LegendDataPoint;
-// powerbi.extensibility.utils.chart
 import IAxisProperties = axisInterfaces.IAxisProperties;
 
-// URL Index, please make sure it's the last one that shouldn't be displayed in the task name
+// Last one that shouldn't be displayed in the task name
 export const INFORMATION_INDEX = 2;
 
 const PercentFormat: string = "0.00 %;-0.00 %;0.00 %";
@@ -286,7 +285,7 @@ export class Gantt implements IVisual {
     private static DefaultTicksLength: number = 35; // length of one tick in pixels (change for more or less amount of selected unit, e.g. days or weeks, in the viewbox by default)
     private static DefaultDuration: number = 250;
     private static TaskLineCoordinateX: number = 15;
-    private static AxisLabelClip: number = 40;
+    private static AxisLabelClip: number = 25; // Margin for resource pane labels (right-side)
     private static AxisLabelStrokeWidth: number = 1;
     private static AxisTopMargin: number = 6;
     private static CollapseAllLeftShift: number = 7.5;
@@ -1911,8 +1910,8 @@ export class Gantt implements IVisual {
         groupedTasks.forEach(group => Gantt.assignTaskLanes(group.tasks));
 
         groupedTasks.forEach(group => {
-            group.maxLane = Gantt.getMaxLane(group.tasks);
-            group.rowHeight = (group.maxLane + 1) * (this.viewModel.settings.taskConfigCardSettings.height.value || DefaultChartLineHeight);
+            const usedLanes = group.tasks.length > 0 ? Math.max(0, ...group.tasks.map(t => t.lane || 0)) + 1 : 0;
+            group.rowHeight = usedLanes * (this.viewModel.settings.taskConfigCardSettings.height.value || DefaultChartLineHeight);
         });
 
         this.updateCommonTasks(groupedTasks);
@@ -2525,12 +2524,45 @@ export class Gantt implements IVisual {
             // Main label text
             axisLabelGroup
                 .append("text")
-                .attr("x", Gantt.TaskLineCoordinateX)
+                .attr("x", 0)
                 .attr("y", taskConfigHeight / 2)
                 .attr("stroke-width", Gantt.AxisLabelStrokeWidth)
                 .attr("class", "task-labels")
-                .text((d) => d.group.name)
-                .call(AxisHelper.LabelLayoutStrategy.clip, width - Gantt.AxisLabelClip, textMeasurementService.svgEllipsis)
+                .each(function (d) {
+                    const text = d3Select(this);
+                    const words = d.group.name.split(/\s+/);
+                    const lineHeight = 1.2;
+                    let line: string[] = [];
+                    let lineNumber = 0;
+                    const maxWidth = width - Gantt.AxisLabelClip;
+
+                    words.forEach((word: string) => {
+                        line.push(word);
+                        const testLine = line.join(" ");
+                        const testWidth = textMeasurementService.measureSvgTextWidth({
+                            text: testLine,
+                            fontFamily: "wf_segoe-ui_normal",
+                            fontSize: "12px"
+                        });
+
+                        if (testWidth > maxWidth && line.length > 1) {
+                            line.pop();
+                            text.append("tspan")
+                                .attr("x", Gantt.TaskLineCoordinateX)
+                                .attr("dy", lineNumber === 0 ? 0 : lineHeight + "em")
+                                .text(line.join(" "));
+                            line = [word];
+                            lineNumber++;
+                        }
+                    });
+
+                    if (line.length > 0) {
+                        text.append("tspan")
+                            .attr("x", Gantt.TaskLineCoordinateX)
+                            .attr("dy", lineNumber === 0 ? 0 : lineHeight + "em")
+                            .text(line.join(" "));
+                    }
+                })
                 .append("title")
                 .text((d) => d.group.name);
 
@@ -3383,10 +3415,6 @@ export class Gantt implements IVisual {
             groupedTasks, taskConfigHeight, taskResourceFontSize,
             taskResourceColor, taskResourcePosition, this.lastScrollLeft
         );
-    }
-
-    private static getMaxLane(tasks: Task[]): number {
-        return Math.max(0, ...tasks.map(t => t.lane || 0));
     }
 
     private static getSameRowNextTaskStartDate(task: Task, index: number, selection: Selection<Task>) {

@@ -69,7 +69,6 @@ export interface GroupedTask {
     name: string;
     tasks: Task[];
     rowHeight: number;
-    maxLane: number;
 }
 
 export interface GanttChartFormatters {
