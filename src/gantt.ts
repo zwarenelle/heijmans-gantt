@@ -2105,33 +2105,31 @@ export class Gantt implements IVisual {
     }
 
     // Assigns a 'lane' index to each task in a group so overlapping tasks are stacked.
+    // Minimizes vertical whitespace by allowing cross-group lane sharing.
     // Modifies tasks in-place.
     private static assignTaskLanes(tasks: Task[]): void {
-        // Group tasks by extraInformation[3].value (fall back to empty string)
+        // Group tasks by extraInformation[3].value for sorting/grouping logic
         const groups: { [key: string]: Task[] } = lodashGroupBy(tasks, (t: Task) => {
             const v = t?.extraInformation?.[3]?.value;
             return (typeof v === "undefined" || v === null) ? "" : String(v);
         });
 
-        // Sort group keys to create a deterministic order (you can change sort to a custom order)
+        // Sort group keys to create a deterministic order
         const groupKeys = Object.keys(groups).sort();
 
-        let laneOffset = 0;
+        // Collect all tasks in order, but maintain group information
+        const allTasksWithGroup: Array<{ task: Task; groupKey: string }> = [];
 
         groupKeys.forEach((key) => {
             const groupTasks = groups[key];
 
             // Sort within the group by extraInformation[1].value (ascending).
-            // For "special" tasks add 100 to that value so they sort later.
-            // Tie-breaker: start time.
             const valueForSort = (t: Task) => {
                 const raw = t?.extraInformation?.[1]?.value;
                 let num = typeof raw === "number" ? raw : (raw != null ? parseFloat(String(raw)) : NaN);
                 if (isNaN(num)) {
-                    // Put undefined/non-numeric values to the end
                     num = Number.POSITIVE_INFINITY;
                 }
-                // If task is a "special" task, add offset
                 if (Gantt.isSpecialTaskName(t)) {
                     num += 100;
                 }
@@ -2145,34 +2143,48 @@ export class Gantt implements IVisual {
                 if (aVal < bVal) return -1;
                 if (aVal > bVal) return 1;
 
-                // tie-breaker by start time
                 return a.start.getTime() - b.start.getTime();
             });
 
-            // Assign lanes for this group's tasks using a greedy non-overlapping placement.
-            // Lanes for each group are kept contiguous by adding laneOffset.
-            const lanes: Task[][] = [];
             groupTasks.forEach(task => {
-                let placed = false;
-                for (let i = 0; i < lanes.length; i++) {
-                    const last = lanes[i][lanes[i].length - 1];
-                    // If last task in lane ends before this task starts -> place it here
-                    if (!last.end || last.end.getTime() <= task.start.getTime()) {
-                        lanes[i].push(task);
-                        task.lane = laneOffset + i;
-                        placed = true;
-                        break;
-                    }
-                }
-                if (!placed) {
-                    // New lane for this group
-                    task.lane = laneOffset + lanes.length;
-                    lanes.push([task]);
-                }
+                allTasksWithGroup.push({ task, groupKey: key });
             });
+        });
 
-            // Move offset so next group's lanes are placed below current group's lanes
-            laneOffset += lanes.length;
+        // Global lane assignment using interval overlap detection
+        // This allows tasks from different groups to share lanes if they don't overlap
+        const lanes: Array<{ tasks: Task[], endTime: number }> = [];
+
+        allTasksWithGroup.forEach(({ task }) => {
+            const taskStartTime = task.start.getTime();
+            const taskEndTime = (task.end?.getTime() ?? taskStartTime);
+
+            // Find the first lane where this task doesn't overlap with ANY existing task
+            let placed = false;
+
+            for (let i = 0; i < lanes.length; i++) {
+                const lane = lanes[i];
+                const hasOverlap = lane.tasks.some(existingTask => {
+                    const existingStart = existingTask.start.getTime();
+                    const existingEnd = (existingTask.end?.getTime() ?? existingStart);
+                    // Intervals overlap if: start1 < end2 AND start2 < end1
+                    return taskStartTime < existingEnd && taskEndTime > existingStart;
+                });
+
+                if (!hasOverlap) {
+                    lane.tasks.push(task);
+                    lane.endTime = Math.max(lane.endTime, taskEndTime);
+                    task.lane = i;
+                    placed = true;
+                    break;
+                }
+            }
+
+            if (!placed) {
+                // Create new lane only if needed
+                task.lane = lanes.length;
+                lanes.push({ tasks: [task], endTime: taskEndTime });
+            }
         });
     }
 
