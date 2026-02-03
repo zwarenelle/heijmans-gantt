@@ -58,8 +58,7 @@ import {
     axisInterfaces,
     axisScale,
     legend as LegendModule,
-    legendInterfaces,
-    OpacityLegendBehavior
+    legendInterfaces
 } from "powerbi-visuals-utils-chartutils";
 
 // behavior
@@ -572,14 +571,11 @@ export class Gantt implements IVisual {
     }
 
     private createLegendContainer(element: HTMLElement): void {
-        const interactiveBehavior: IInteractiveBehavior = this.colorHelper.isHighContrast ? new OpacityLegendBehavior() : null;
         this.legend = createLegend(
             element,
-            this.isInteractiveChart,
-            this.interactivityService,
             true,
-            LegendPosition.Top,
-            interactiveBehavior);
+            LegendPosition.Top
+        );
     }
 
     private handleScrollEvent(): void {
@@ -3173,8 +3169,8 @@ export class Gantt implements IVisual {
         if (!this.dailyTicks || !Gantt.TimeScale) return;
 
         // Remove old day labels and capacity labels
-        this.axisGroup.selectAll(".day-label").remove();
-        this.axisGroup.selectAll(".capacity-label").remove();
+        // this.axisGroup.selectAll(".day-label").remove();
+        // this.axisGroup.selectAll(".capacity-label").remove();
 
         // Calculate Y positions (margins) task labels
         const weekAxisHeight = 24;
