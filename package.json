@@ -47,7 +47,7 @@
     "moment": "^2.30.1",
     "moment-timezone": "^0.6.0",
     "ncu": "^0.2.1",
-    "powerbi-visuals-api": "~5.9.0",
+    "powerbi-visuals-api": "~5.11.0",
     "powerbi-visuals-utils-chartutils": "^8.2.0",
     "powerbi-visuals-utils-colorutils": "^6.0.5",
     "powerbi-visuals-utils-dataviewutils": "^6.1.0",
@@ -102,6 +102,6 @@
     "style-loader": "^4.0.0",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
-    "webpack": "^5.104.1"
+    "webpack": "^5.105.0"
   }
 }
