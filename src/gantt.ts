@@ -1386,7 +1386,8 @@ export class Gantt implements IVisual {
             specialName.substring(0, 5) === "Zwart" ||
             specialName.substring(0, 6) === "Divers" ||
             specialName.substring(0, 6) === "Boring" ||
-            specialName.substring(0, 11) === "Kabelnummer") {
+            specialName.substring(0, 8) === "29km OV" ||
+            specialName.substring(0, 3) === "Knr") {
             return true;
         }
         return false;
@@ -2006,7 +2007,7 @@ export class Gantt implements IVisual {
                 return MillisecondsInAMinute;
 
             case DateType.Hour:
-                return MillisecondsInAHour * 5; // custom setting to increase ticks on daily view
+                return MillisecondsInAHour * 6; // custom setting to increase ticks on daily view
 
             case DateType.Day:
                 return MillisecondsInADay;
