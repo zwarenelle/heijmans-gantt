@@ -157,8 +157,8 @@ const PercentFormat: string = "0.00 %;-0.00 %;0.00 %";
 const ScrollMargin: number = 100;
 const MillisecondsInASecond: number = 1000;
 const MillisecondsInAMinute: number = 60 * MillisecondsInASecond;
-const MillisecondsInAHour: number = 60 * MillisecondsInAMinute;
-const MillisecondsInADay: number = 24 * MillisecondsInAHour;
+const MillisecondsInAHour: number = 60 * MillisecondsInAMinute; // ticks for hour
+const MillisecondsInADay: number = 24 * MillisecondsInAHour; // ticks for day
 const MillisecondsInWeek: number = 7 * MillisecondsInADay;
 const MillisecondsInAMonth: number = 30 * MillisecondsInADay;
 const MillisecondsInAYear: number = 365 * MillisecondsInADay;
@@ -1385,7 +1385,8 @@ export class Gantt implements IVisual {
             specialName.substring(0, 4) === "Rood" ||
             specialName.substring(0, 5) === "Zwart" ||
             specialName.substring(0, 6) === "Divers" ||
-            specialName.substring(0, 6) === "Boring") {
+            specialName.substring(0, 6) === "Boring" ||
+            specialName.substring(0, 11) === "Kabelnummer") {
             return true;
         }
         return false;
@@ -2005,7 +2006,7 @@ export class Gantt implements IVisual {
                 return MillisecondsInAMinute;
 
             case DateType.Hour:
-                return MillisecondsInAHour;
+                return MillisecondsInAHour * 5; // custom setting to increase ticks on daily view
 
             case DateType.Day:
                 return MillisecondsInADay;
