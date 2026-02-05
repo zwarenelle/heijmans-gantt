@@ -2241,7 +2241,7 @@ export class Gantt implements IVisual {
         const dateType: DateType = DateType[this.viewModel.settings.dateTypeCardSettings.type.value.value];
         const cultureSelector: string = this.host.locale;
         const customDateFormatter = (date: Date): string => {
-            if (dateType === DateType.Week || dateType === DateType.Day) {
+            if (dateType === DateType.Week || dateType === DateType.Day || dateType === DateType.Hour) {
                 const weekNumber = moment(date).isoWeek(); // Get ISO week number
                 return `${moment(date).format("DD MMM")} (Wk ${weekNumber})`;
             }
