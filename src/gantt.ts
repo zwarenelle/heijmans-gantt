@@ -534,7 +534,7 @@ export class Gantt implements IVisual {
             .append("rect")
             .attr("width", "100%")
             .attr("y", "-20")
-            .attr("height", "40px")
+            .attr("height", "80px")
             .attr("fill", axisBackgroundColor);
 
         // create task lines container
