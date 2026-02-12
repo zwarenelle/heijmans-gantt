@@ -2244,7 +2244,7 @@ export class Gantt implements IVisual {
         const customDateFormatter = (date: Date): string => {
             if (dateType === DateType.Week || dateType === DateType.Day || dateType === DateType.Hour) {
                 const weekNumber = moment(date).isoWeek(); // Get ISO week number
-                return `${moment(date).format("DD MMM")} (Wk ${weekNumber})`;
+                return `${moment(date).format("DD MMM YYYY")} (Wk ${weekNumber})`;
             }
             return moment(date).format(Gantt.DefaultValues.DateFormatStrings[dateType]);
         };
@@ -3170,13 +3170,9 @@ export class Gantt implements IVisual {
     private renderDayLabels(): void {
         if (!this.dailyTicks || !Gantt.TimeScale) return;
 
-        // Remove old day labels and capacity labels
-        // this.axisGroup.selectAll(".day-label").remove();
-        // this.axisGroup.selectAll(".capacity-label").remove();
-
         // Calculate Y positions (margins) task labels
         const weekAxisHeight = 24;
-        const capacityLabelYOffset = weekAxisHeight + 12; // above day label
+        const capacityLabelYOffset = weekAxisHeight + 12; // above day labels
         const dayLabelYOffset = weekAxisHeight + 24;
 
         // Gather all unique resources
@@ -3185,7 +3181,7 @@ export class Gantt implements IVisual {
         allTasks.forEach(task => {
             if (task.name) allResourcesSet.add(task.name);
         });
-        const totalResources = allResourcesSet.size;
+        // const totalResources = allResourcesSet.size;
 
         // For each day, calculate occupied resources
         const capacityData = this.dailyTicks.map((date) => {
@@ -3201,8 +3197,8 @@ export class Gantt implements IVisual {
             });
             return {
                 date,
-                occupied: occupiedResources.size,
-                total: totalResources
+                occupied: occupiedResources.size
+                // total: totalResources
             };
         });
 
@@ -3217,7 +3213,8 @@ export class Gantt implements IVisual {
             .attr("text-anchor", "middle")
             .attr("font-size", "10px")
             .attr("fill", "#444")
-            .text((d) => `${d.occupied} / ${d.total}`);
+            .text((d) => `${d.occupied}`);
+        // .text((d) => `${d.occupied} / ${d.total}`);
 
         // Render each day label as before
         this.axisGroup.selectAll(".day-label")
@@ -3230,7 +3227,7 @@ export class Gantt implements IVisual {
             .attr("text-anchor", "middle")
             .attr("font-size", "10px")
             .attr("fill", "#888")
-            .text((d: Date) => d.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2));
+            .text((d: Date) => d.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 2) + ' ' + d.getDate())
     }
 
     /**
