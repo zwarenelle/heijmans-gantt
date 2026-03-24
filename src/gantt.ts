@@ -1942,7 +1942,7 @@ export class Gantt implements IVisual {
                 width: axisLength
             };
 
-            const xAxisProperties: IAxisProperties = this.calculateAxes(viewportIn, this.textProperties, startDate, endDate, ticks, false);
+            const xAxisProperties: IAxisProperties = this.calculateAxes(viewportIn, this.textProperties, startDate, endDate, false);
             this.xAxisProperties = xAxisProperties;
             Gantt.TimeScale = <timeScale<Date, Date>>xAxisProperties.scale;
 
@@ -2034,7 +2034,6 @@ export class Gantt implements IVisual {
         textProperties: TextProperties,
         startDate: Date,
         endDate: Date,
-        ticksCount: number,
         scrollbarVisible: boolean): IAxisProperties {
 
         // Adjust startDate to the nearest Monday
@@ -3201,6 +3200,10 @@ export class Gantt implements IVisual {
                 // total: totalResources
             };
         });
+
+        // Remove old capacity and day labels before rendering new ones
+        this.axisGroup.selectAll(".capacity-label").remove();
+        this.axisGroup.selectAll(".day-label").remove();
 
         // Render capacity labels
         this.axisGroup.selectAll(".capacity-label")
